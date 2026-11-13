@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
@@ -190,7 +191,56 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         cerrarSinError(stream) // al cerrar, "cat" termina de escribir el archivo
     }
 
+    /** Pasa un archivo del celular a la TV de a pedazos (sirve para videos grandes sin llenar la memoria). */
+    fun enviarArchivo(ruta: String, entrada: InputStream, progreso: (Long) -> Unit) {
+        asegurarConexion()
+        val stream = openStream("exec:cat > ${comillas(ruta)}")
+        try {
+            val salida = stream.openOutputStream()
+            val buffer = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val n = entrada.read(buffer)
+                if (n < 0) break
+                salida.write(buffer, 0, n)
+                total += n
+                progreso(total)
+            }
+            salida.flush()
+        } finally {
+            cerrarSinError(stream)
+        }
+    }
+
+    /** Trae un archivo de la TV al celular, escribiéndolo en [salida] a medida que llega. */
+    fun recibirArchivo(ruta: String, salida: OutputStream, progreso: (Long) -> Unit) {
+        asegurarConexion()
+        val stream = openStream("exec:cat ${comillas(ruta)}")
+        try {
+            val entrada = stream.openInputStream()
+            val buffer = ByteArray(64 * 1024)
+            var total = 0L
+            try {
+                while (true) {
+                    val n = entrada.read(buffer)
+                    if (n < 0) break
+                    salida.write(buffer, 0, n)
+                    total += n
+                    progreso(total)
+                }
+            } catch (e: IOException) {
+                if (e.message?.contains("Stream closed", ignoreCase = true) != true) throw e
+            }
+            salida.flush()
+        } finally {
+            cerrarSinError(stream)
+        }
+    }
+
     companion object {
+        /** Pone una ruta entre comillas para la consola de la TV (por si tiene espacios, paréntesis, etc.). */
+        fun comillas(texto: String) = "'" + texto.replace("'", "'\\''") + "'"
+
         @Volatile
         private var instancia: ConexionTv? = null
 

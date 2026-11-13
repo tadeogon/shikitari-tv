@@ -238,7 +238,8 @@ class MainActivity : Activity() {
         // Accesos
         col.addView(subtitulo("¿Qué querés hacer?"))
         val mosaicos = listOf(
-            Triple("📺", "Control", "Ver la TV y manejarla") to { abrirControl() },
+            Triple("📺", "Control", "Ver la TV y manejarla") to { abrirConTv(ControlActivity::class.java) },
+            Triple("📁", "Archivos", "Ver, borrar y pasar archivos") to { abrirConTv(ArchivosActivity::class.java) },
             Triple("🐱", "Shikitari TV", "Launcher con tus gatos") to { ir(Pantalla.SHIKITARI) },
             Triple("🍎", "Pachi TV", "Estilo Apple TV") to { ir(Pantalla.PACHI) },
             Triple("☀️", "Solari", "Launcher del trabajo") to { ir(Pantalla.SOLARI) },
@@ -298,12 +299,12 @@ class MainActivity : Activity() {
             setOnClickListener { accion() }
         }
 
-    private fun abrirControl() {
+    private fun abrirConTv(pantalla: Class<out Activity>) {
         if (conectada == null) {
             avisar(false, "Primero conectá una TV: tocala en Mis TVs.")
             return
         }
-        startActivity(Intent(this, ControlActivity::class.java))
+        startActivity(Intent(this, pantalla))
     }
 
     private fun pintarEstado() {
@@ -580,9 +581,9 @@ class MainActivity : Activity() {
 
     private fun armarHistorial(): View = pagina("Historial") { col ->
         val caja = tarjeta(col)
-        caja.addView(nota("Todo lo que se hizo desde que abriste la app, con el detalle completo."))
+        caja.addView(nota("Todo lo que se hizo en las TVs, con el detalle completo (también lo de Control y Archivos)."))
         (registro.parent as? ViewGroup)?.removeView(registro)
-        if (registro.text.isEmpty()) registro.text = "Todavía no se hizo nada."
+        registro.text = Bitacora.leer(this).ifEmpty { "Todavía no se hizo nada." }
         caja.addView(registro)
     }
 
@@ -796,9 +797,9 @@ class MainActivity : Activity() {
         b.gravity = Gravity.CENTER
     }
 
-    private fun anotar(texto: String) = runOnUiThread {
-        if (registro.text.toString() == "Todavía no se hizo nada.") registro.text = ""
-        registro.append(texto + "\n\n")
+    private fun anotar(texto: String) {
+        Bitacora.anotar(this, texto)
+        runOnUiThread { registro.text = Bitacora.leer(this) }
     }
 
     private fun agregarChat(texto: String) = runOnUiThread {

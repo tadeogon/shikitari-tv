@@ -24,6 +24,10 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".ArchivosActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".RecorteActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

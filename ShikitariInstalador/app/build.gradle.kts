@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
@@ -11,13 +11,13 @@ android {
         applicationId = "com.shikitari.instalador.nuevo"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "2.0"
+        versionCode = 7
+        versionName = "2.1"
     }
 
     buildTypes {
         release {
-            // Sin achicar: la librería de Claude usa reflexión (Jackson) y se rompería.
+            // Sin achicar: la librerÃ­a de Claude usa reflexiÃ³n (Jackson) y se romperÃ­a.
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -65,7 +65,7 @@ val copiarSolari by tasks.registering(Copy::class) {
 tasks.named("preBuild") { dependsOn(copiarLauncher, copiarPachi, copiarSolari) }
 
 dependencies {
-    // Conexión ADB inalámbrica con la TV (emparejar con código, conectar, ejecutar comandos)
+    // ConexiÃ³n ADB inalÃ¡mbrica con la TV (emparejar con cÃ³digo, conectar, ejecutar comandos)
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
     implementation("org.conscrypt:conscrypt-android:2.5.3")
     // Certificado propio para emparejar con la TV

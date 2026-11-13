@@ -1,6 +1,7 @@
 package com.shikitari.instalador
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -55,6 +56,7 @@ class ControlActivity : Activity() {
     private var visible = false
     private val capturando = AtomicBoolean(false)
     private var apps: List<Pair<String, String>> = emptyList() // paquete, nombre
+    private var instaladasPorVos: Set<String> = emptySet() // las de "-3"; el resto vino de fábrica
 
     private val refrescar = object : Runnable {
         override fun run() {
@@ -191,6 +193,13 @@ class ControlActivity : Activity() {
             addView(teclaAncha("↩  Atrás", "KEYCODE_BACK"), LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
             addView(teclaAncha("⌂  Inicio", "KEYCODE_HOME"), LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
         })
+        caja.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(10), 0, 0)
+            addView(teclaAncha("🔉  Volumen −", "KEYCODE_VOLUME_DOWN"), LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
+            addView(teclaAncha("🔊  Volumen +", "KEYCODE_VOLUME_UP"), LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+        })
         return caja
     }
 
@@ -313,6 +322,7 @@ class ControlActivity : Activity() {
         hiloApps.execute {
             try {
                 val terceros = paquetes(tv.ejecutar("pm list packages -3"))
+                instaladasPorVos = terceros.toSet()
                 // YouTube, Netflix y otras vienen de fábrica en el Chromecast: "-3" no las lista, así que se suman aparte.
                 val todas = paquetes(tv.ejecutar("pm list packages")).toSet()
                 val deFabrica = NOMBRES.keys.filter { it in todas && it !in OCULTAR }
@@ -342,7 +352,7 @@ class ControlActivity : Activity() {
         val favs = favoritas()
         val fijadas = favs.mapNotNull { p -> apps.find { it.first == p } }
         val resto = apps.filter { it.first !in favs }
-        estadoApps.text = "Tocá para abrir. Dejá apretada una app para fijarla arriba (o soltarla)."
+        estadoApps.text = "Tocá para abrir. Dejá apretada una app para fijarla arriba o desinstalarla."
         if (fijadas.isNotEmpty()) {
             grilla.addView(subtitulo("★ Favoritas"))
             agregarGrilla(fijadas, true)
@@ -381,7 +391,7 @@ class ControlActivity : Activity() {
                     }
                     setOnClickListener { abrirApp(paquete, nombre) }
                     setOnLongClickListener {
-                        alternarFavorita(paquete, nombre)
+                        opcionesApp(paquete, nombre)
                         true
                     }
                 }, LinearLayout.LayoutParams(0, dp(60), 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) })
@@ -419,6 +429,58 @@ class ControlActivity : Activity() {
 
     private fun guardarFavoritas(lista: List<String>) {
         prefs.edit().putString(CLAVE_FAVORITAS, lista.distinct().joinToString(",")).apply()
+    }
+
+    private fun opcionesApp(paquete: String, nombre: String) {
+        val esFavorita = paquete in favoritas()
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(nombre)
+            .setItems(arrayOf(if (esFavorita) "Quitar de favoritas" else "★  Fijar arriba", "🗑  Desinstalar de la TV")) { _, i ->
+                if (i == 0) alternarFavorita(paquete, nombre) else confirmarDesinstalar(paquete, nombre)
+            }
+            .show()
+    }
+
+    private fun confirmarDesinstalar(paquete: String, nombre: String) {
+        if (paquete in PROTEGIDAS) {
+            Toast.makeText(this, "$nombre es parte del sistema de la TV: no conviene sacarla.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val deFabrica = paquete !in instaladasPorVos
+        val detalle = if (deFabrica)
+            "Vino con la TV, así que se quita solo para tu usuario (no se rompe nada y se puede recuperar)."
+        else
+            "Se borra de la TV junto con sus datos. Si la querés de nuevo, hay que volver a instalarla."
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("¿Desinstalar $nombre?")
+            .setMessage(detalle)
+            .setPositiveButton("Desinstalar") { _, _ -> desinstalar(paquete, nombre, deFabrica) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun desinstalar(paquete: String, nombre: String, deFabrica: Boolean) {
+        Toast.makeText(this, "Desinstalando $nombre…", Toast.LENGTH_SHORT).show()
+        hiloApps.execute {
+            val comando = if (deFabrica) "pm uninstall -k --user 0 $paquete" else "pm uninstall $paquete"
+            val salida = try {
+                tv.ejecutar("$comando 2>&1", segundos = 60)
+            } catch (e: Exception) {
+                "Error: ${e.message}"
+            }
+            val ok = salida.contains("Success")
+            Bitacora.anotar(this, "▸ Desinstalar $nombre ($paquete)\n$ $comando\n$salida")
+            runOnUiThread {
+                if (ok) {
+                    Toast.makeText(this, "✓ $nombre desinstalada", Toast.LENGTH_SHORT).show()
+                    apps = apps.filter { it.first != paquete }
+                    guardarFavoritas(favoritas() - paquete)
+                    pintarApps()
+                } else {
+                    Toast.makeText(this, "No se pudo desinstalar $nombre: $salida", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun alternarFavorita(paquete: String, nombre: String) {
@@ -500,6 +562,9 @@ class ControlActivity : Activity() {
         )
 
         /** Paquetes de "-3" que no son apps para abrir (servicios, actualizadores). */
+        /** No se ofrecen para desinstalar: sin ellas la TV queda sin tienda, sin ajustes o sin inicio. */
+        val PROTEGIDAS = setOf("com.android.vending", "com.google.android.tv", "com.android.tv.settings", "com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher")
+
         val OCULTAR = setOf("com.shikitari.instalador", "com.shikitari.instalador.nuevo", "com.android.mgstxNF")
     }
 }
