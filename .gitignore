@@ -1,0 +1,20 @@
+﻿# Lo que se genera al compilar (se vuelve a crear en cualquier PC)
+build/
+.gradle/
+.idea/
+.kotlin/
+*.iml
+local.properties
+captures/
+
+# APKs: pesan mucho y algunos son de otras apps (SmartTube, Fylmo, etc.)
+*.apk
+*.aab
+
+# Herramientas que se bajan aparte
+platform-tools-latest-windows/
+
+# Archivos del sistema
+Thumbs.db
+desktop.ini
+.DS_Store

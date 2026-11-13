@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Solari</string>
+    <string name="protector_nombre">Solari Bienes Raíces – logo</string>
+    <string name="servicio_nombre">Solari (botón Inicio)</string>
+    <string name="servicio_descripcion">Abre el launcher de Solari cuando apretás el botón Inicio del control. No lee lo que escribís ni el contenido de otras apps.</string>
+    <!-- Estilo formal: tipografía de la marca y protector sin papelitos -->
+    <bool name="marca_formal">true</bool>
+</resources>

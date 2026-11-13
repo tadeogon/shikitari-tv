@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shikitari TV</string>
+    <!-- Título grande de arriba: cambiá esto por tu nombre -->
+    <string name="titulo">Shikitari TV</string>
+    <!-- "Veamos lo que nos gusta" -->
+    <string name="subtitulo">好きなことを見よう</string>
+    <string name="protector_nombre">Shikitari TV – gatos</string>
+    <string name="servicio_nombre">Shikitari TV (botón Inicio)</string>
+    <string name="servicio_descripcion">Abre Shikitari TV cuando apretás el botón Inicio del control. No lee lo que escribís ni el contenido de otras apps.</string>
+</resources>

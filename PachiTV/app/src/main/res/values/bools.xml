@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- La versión del trabajo lo pone en true (src/trabajo) -->
+    <bool name="marca_formal">false</bool>
+</resources>
