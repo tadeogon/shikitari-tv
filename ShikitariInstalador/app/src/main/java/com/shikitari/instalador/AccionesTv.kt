@@ -138,9 +138,15 @@ class AccionesTv(private val contexto: Context, private val tv: ConexionTv) {
             val originales = ESCALAS.map { tv.ejecutar("settings get global $it").let { v -> if (v == "null" || v.isBlank()) "1.0" else v } }
             prefs.edit().putString("anim_$id", originales.joinToString(",")).apply()
         }
-        ESCALAS.forEach { tv.ejecutar("settings put global $it 0.5") }
+        // En Fire TV, animator_duration_scale en 0.5 hace que el menú lateral se cierre sin abrir nada
+        // (no se llega a Ajustes con el control), así que ahí esa queda en 1.0.
+        val esFire = tv.ejecutar("getprop ro.product.manufacturer").trim().equals("Amazon", ignoreCase = true)
+        ESCALAS.forEach { clave ->
+            val valor = if (esFire && clave == "animator_duration_scale") "1.0" else "0.5"
+            tv.ejecutar("settings put global $clave $valor")
+        }
         tv.ejecutar("pm trim-caches 999G", segundos = 120)
-        log.append("Caché liberada y animaciones en 0.5\n")
+        log.append(if (esFire) "Caché liberada y animaciones en 0.5 (la del menú queda en 1.0 por ser Fire TV)\n" else "Caché liberada y animaciones en 0.5\n")
         log.append("Espacio libre después: ${espacioLibre()}")
         return log.toString()
     }

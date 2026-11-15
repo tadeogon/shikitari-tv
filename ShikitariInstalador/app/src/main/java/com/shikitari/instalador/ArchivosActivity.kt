@@ -54,6 +54,8 @@ class ArchivosActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(armar())
         abrir(RAIZ)
+        // Desde el mosaico "Instalar APK" del Inicio se abre directo el selector.
+        if (savedInstanceState == null && intent.getBooleanExtra(EXTRA_INSTALAR, false)) elegirApk()
     }
 
     override fun onDestroy() {
@@ -99,6 +101,8 @@ class ArchivosActivity : Activity() {
 
         col.addView(boton("⬆  Pasar archivos del celular a la TV", true) { elegirParaSubir() },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(50)).apply { topMargin = dp(14) })
+        col.addView(boton("📦  Instalar un APK del celular en la TV", false) { elegirApk() },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(50)).apply { topMargin = dp(10) })
 
         // Progreso de lo que se está pasando
         cajaProgreso = tarjeta().apply { visibility = View.GONE }
@@ -400,6 +404,71 @@ class ArchivosActivity : Activity() {
         }
     }
 
+    // --- Instalar un APK que está en el celular ---
+
+    private fun elegirApk() {
+        if (ocupado) {
+            Toast.makeText(this, "Esperá a que termine lo que se está pasando.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            // Algunos celulares no marcan los APK con su tipo, así que se aceptan todos y se revisa después.
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/vnd.android.package-archive", "application/octet-stream", "*/*"))
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }, PEDIDO_APK)
+    }
+
+    private fun instalarDelCelular(elegidos: List<Uri>) {
+        empezarProgreso("Preparando…")
+        hilo.execute {
+            var bien = 0
+            val errores = mutableListOf<String>()
+            elegidos.forEachIndexed { i, uri ->
+                val (nombre, tam) = datosDe(uri)
+                val cual = if (elegidos.size > 1) " (${i + 1} de ${elegidos.size})" else ""
+                try {
+                    if (!nombre.endsWith(".apk", ignoreCase = true)) {
+                        throw Exception(
+                            if (nombre.endsWith(".apks", true) || nombre.endsWith(".xapk", true) || nombre.endsWith(".apkm", true))
+                                "es un paquete dividido (.apks/.xapk); hace falta el .apk común"
+                            else "no es un APK"
+                        )
+                    }
+                    if (tam <= 0) throw Exception("no se pudo saber cuánto pesa")
+                    runOnUiThread { textoProgreso.text = "Instalando $nombre$cual…" }
+                    val salida = contentResolver.openInputStream(uri)?.use { e ->
+                        tv.instalarApk(e, tam) { hecho ->
+                            progreso(hecho, tam)
+                            if (hecho >= tam) runOnUiThread { textoProgreso.text = "La TV está instalando $nombre…" }
+                        }
+                    } ?: throw Exception("no se pudo abrir")
+                    Bitacora.anotar(this, "▸ Instalar APK del celular en la TV\n$nombre (${tamano(tam)})\n$salida")
+                    if (!salida.contains("Success")) throw Exception(motivoError(salida))
+                    bien++
+                } catch (ex: Exception) {
+                    errores += "$nombre: ${ex.message}"
+                }
+            }
+            val ok = errores.isEmpty()
+            val texto = if (ok) "✓ ${if (bien == 1) "App instalada" else "$bien apps instaladas"} en la TV"
+            else "Se instalaron $bien de ${elegidos.size}.\n" + errores.joinToString("\n")
+            terminarProgreso(ok, texto)
+        }
+    }
+
+    /** Traduce los errores más comunes de Android a algo entendible. */
+    private fun motivoError(salida: String): String = when {
+        "INSTALL_FAILED_NO_MATCHING_ABIS" in salida -> "esa versión no es para el procesador de esta TV (buscá la de 32 bits / armeabi-v7a)"
+        "INSTALL_FAILED_UPDATE_INCOMPATIBLE" in salida -> "ya hay otra versión instalada con distinta firma: desinstalala primero"
+        "INSTALL_FAILED_VERSION_DOWNGRADE" in salida -> "la TV ya tiene una versión más nueva"
+        "INSTALL_FAILED_OLDER_SDK" in salida -> "la app pide un Android más nuevo que el de la TV"
+        "INSTALL_FAILED_INSUFFICIENT_STORAGE" in salida -> "no hay espacio en la TV"
+        "INSTALL_PARSE_FAILED" in salida -> "el archivo está dañado o incompleto"
+        else -> salida.lines().lastOrNull { it.isNotBlank() } ?: "error desconocido"
+    }
+
     private fun datosDe(uri: Uri): Pair<String, Long> {
         var nombre = "archivo"
         var tam = -1L
@@ -421,12 +490,13 @@ class ArchivosActivity : Activity() {
                 val a = paraGuardar ?: return
                 data.data?.let { traer(a, it) }
             }
-            PEDIDO_SUBIR -> {
+            PEDIDO_SUBIR, PEDIDO_APK -> {
                 val uris = mutableListOf<Uri>()
                 val clip = data.clipData
                 if (clip != null) for (i in 0 until clip.itemCount) uris += clip.getItemAt(i).uri
                 else data.data?.let { uris += it }
-                if (uris.isNotEmpty()) subir(uris)
+                if (uris.isEmpty()) return
+                if (requestCode == PEDIDO_APK) instalarDelCelular(uris) else subir(uris)
             }
         }
     }
@@ -498,9 +568,11 @@ class ArchivosActivity : Activity() {
     private fun dp(valor: Int): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, valor.toFloat(), resources.displayMetrics).toInt()
 
-    private companion object {
-        const val RAIZ = "/sdcard"
-        const val PEDIDO_GUARDAR = 41
-        const val PEDIDO_SUBIR = 42
+    companion object {
+        const val EXTRA_INSTALAR = "instalar_apk"
+        private const val RAIZ = "/sdcard"
+        private const val PEDIDO_GUARDAR = 41
+        private const val PEDIDO_SUBIR = 42
+        private const val PEDIDO_APK = 43
     }
 }

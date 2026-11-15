@@ -212,6 +212,28 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         }
     }
 
+    /** Instala un APK que está en el celular, mandándolo de a pedazos (sirve aunque pese cientos de MB). */
+    fun instalarApk(entrada: InputStream, tamano: Long, progreso: (Long) -> Unit): String {
+        asegurarConexion()
+        val stream = openStream("exec:cmd package install -r -S $tamano")
+        try {
+            val salida = stream.openOutputStream()
+            val buffer = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val n = entrada.read(buffer)
+                if (n < 0) break
+                salida.write(buffer, 0, n)
+                total += n
+                progreso(total)
+            }
+            salida.flush()
+            return leerTodo(stream.openInputStream()).trim()
+        } finally {
+            cerrarSinError(stream)
+        }
+    }
+
     /** Trae un archivo de la TV al celular, escribiéndolo en [salida] a medida que llega. */
     fun recibirArchivo(ruta: String, salida: OutputStream, progreso: (Long) -> Unit) {
         asegurarConexion()

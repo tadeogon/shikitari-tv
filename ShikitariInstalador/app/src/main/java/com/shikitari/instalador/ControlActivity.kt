@@ -516,6 +516,8 @@ class ControlActivity : Activity() {
         val FAVORITAS_INICIALES = listOf(
             "com.netflix.ninja",
             "com.google.android.youtube.tv",
+            "com.amazon.firetv.youtube",
+            "com.amazon.avod",
             "com.disney.disneyplus",
             "com.hbo.hbonow",
             "com.amazon.amazonvideo.livingroom",
@@ -526,6 +528,15 @@ class ControlActivity : Activity() {
         val NOMBRES = mapOf(
             "com.netflix.ninja" to "Netflix",
             "com.google.android.youtube.tv" to "YouTube",
+            "com.amazon.firetv.youtube" to "YouTube",
+            "com.amazon.avod" to "Prime Video",
+            "com.amazon.venezia" to "Appstore",
+            "com.amazon.tv.settings.v2" to "Ajustes",
+            "tv.twitch.android.viewer" to "Twitch",
+            "org.clipbox.player" to "ClipBox",
+            "dev.dworks.apps.anexplorer" to "AnExplorer",
+            "com.estrongs.android.pop" to "ES Explorador",
+            "com.precisecontrol.filemanager.free" to "Administrador de archivos",
             "com.google.android.youtube.tvmusic" to "YouTube Music",
             "com.google.android.youtube.tvkids" to "YouTube Kids",
             "com.disney.disneyplus" to "Disney+",
@@ -563,7 +574,8 @@ class ControlActivity : Activity() {
 
         /** Paquetes de "-3" que no son apps para abrir (servicios, actualizadores). */
         /** No se ofrecen para desinstalar: sin ellas la TV queda sin tienda, sin ajustes o sin inicio. */
-        val PROTEGIDAS = setOf("com.android.vending", "com.google.android.tv", "com.android.tv.settings", "com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher")
+        val PROTEGIDAS = setOf("com.android.vending", "com.google.android.tv", "com.android.tv.settings", "com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher",
+            "com.amazon.tv.launcher", "com.amazon.tv.settings.v2", "com.amazon.venezia")
 
         val OCULTAR = setOf("com.shikitari.instalador", "com.shikitari.instalador.nuevo", "com.android.mgstxNF")
     }

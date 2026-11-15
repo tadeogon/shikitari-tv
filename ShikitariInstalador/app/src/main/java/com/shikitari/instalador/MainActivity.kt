@@ -240,6 +240,7 @@ class MainActivity : Activity() {
         val mosaicos = listOf(
             Triple("📺", "Control", "Ver la TV y manejarla") to { abrirConTv(ControlActivity::class.java) },
             Triple("📁", "Archivos", "Ver, borrar y pasar archivos") to { abrirConTv(ArchivosActivity::class.java) },
+            Triple("📦", "Instalar APK", "Desde tu celular a la TV") to { abrirConTv(ArchivosActivity::class.java, instalar = true) },
             Triple("🐱", "Shikitari TV", "Launcher con tus gatos") to { ir(Pantalla.SHIKITARI) },
             Triple("🍎", "Pachi TV", "Estilo Apple TV") to { ir(Pantalla.PACHI) },
             Triple("☀️", "Solari", "Launcher del trabajo") to { ir(Pantalla.SOLARI) },
@@ -299,12 +300,12 @@ class MainActivity : Activity() {
             setOnClickListener { accion() }
         }
 
-    private fun abrirConTv(pantalla: Class<out Activity>) {
+    private fun abrirConTv(pantalla: Class<out Activity>, instalar: Boolean = false) {
         if (conectada == null) {
             avisar(false, "Primero conectá una TV: tocala en Mis TVs.")
             return
         }
-        startActivity(Intent(this, pantalla))
+        startActivity(Intent(this, pantalla).putExtra(ArchivosActivity.EXTRA_INSTALAR, instalar))
     }
 
     private fun pintarEstado() {
