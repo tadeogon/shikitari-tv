@@ -513,7 +513,6 @@ class MainActivity : Activity() {
         raiz.addView(panel, FrameLayout.LayoutParams(dp(224), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START or Gravity.CENTER_VERTICAL).apply {
             marginStart = dp(24)
         })
-        if (primeraVez) raiz.addView(armarPresentacion(), llenar())
         return raiz
     }
 
@@ -594,25 +593,6 @@ class MainActivity : Activity() {
     private fun pintarClima(clima: Pair<String, String>) {
         climaAhora.text = clima.first
         climaDetalle.text = clima.second
-    }
-
-    /** Logo grande al abrir la app, que se desvanece enseguida. */
-    private fun armarPresentacion(): View {
-        val capa = FrameLayout(this).apply {
-            setBackgroundColor(0xFF0B0B0F.toInt())
-            elevation = dp(40).toFloat()
-            addView(ImageView(this@MainActivity).apply {
-                setImageResource(R.drawable.logo_pachi)
-                adjustViewBounds = true
-            }, FrameLayout.LayoutParams(dp(380), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
-        }
-        capa.postDelayed({
-            animar(capa, 360) { c ->
-                capa.alpha = 1 - c
-                if (c >= 1f) capa.visibility = View.GONE
-            }
-        }, 1000)
-        return capa
     }
 
     /** Parte de arriba: el logo grande de la app enfocada, con su nombre al lado. */
