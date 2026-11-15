@@ -12,21 +12,14 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Material.NoActionBar"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Control de la TV: pantalla en vivo, control remoto y apps -->
-        <activity
-            android:name=".ControlActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".ArchivosActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
         <activity
             android:name=".RecorteActivity"
             android:exported="false"

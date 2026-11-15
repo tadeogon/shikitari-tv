@@ -50,11 +50,12 @@ class RecorteActivity : Activity() {
         editor = EditorRecorte(this, foto)
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF17161B.toInt())
+            setBackgroundColor(Color.BLACK)
+            fitsSystemWindows = true
         }
         col.addView(TextView(this).apply {
             text = "Mové la foto con un dedo y pellizcá para acercar.\nLo que queda adentro del recuadro es lo que se ve en la TV."
-            setTextColor(0xFFEEE7DC.toInt())
+            setTextColor(0x8CEBEBF5.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             gravity = Gravity.CENTER
             setPadding(dp(16), dp(24), dp(16), dp(8))
@@ -80,14 +81,23 @@ class RecorteActivity : Activity() {
         setContentView(col)
     }
 
+    /** Mismo estilo que el resto de la app: el principal blanco, el otro de vidrio. */
     private fun boton(texto: String, principal: Boolean, accion: () -> Unit) = Button(this).apply {
         text = texto
         isAllCaps = false
-        setTextColor(Color.WHITE)
-        typeface = Typeface.DEFAULT_BOLD
+        stateListAnimator = null
+        setTextColor(if (principal) Color.BLACK else Color.WHITE)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         background = GradientDrawable().apply {
-            setColor(if (principal) 0xFFC8372D.toInt() else 0xFF2A2830.toInt())
-            cornerRadius = dp(26).toFloat()
+            if (principal) {
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                colors = intArrayOf(0xF7FFFFFF.toInt(), 0xD6FFFFFF.toInt())
+            } else {
+                setColor(0x1FFFFFFF)
+                setStroke(dp(1), 0x1FFFFFFF)
+            }
+            cornerRadius = dp(14).toFloat()
         }
         setOnClickListener { accion() }
     }

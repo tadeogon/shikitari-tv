@@ -62,7 +62,7 @@ import kotlin.math.roundToInt
 // ---------- Botones ----------
 
 @Composable
-private fun BotonBase(
+internal fun BotonBase(
     texto: String,
     onClick: () -> Unit,
     relleno: Brush,
