@@ -5,7 +5,7 @@ import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Cuando aparece la pantalla de inicio de Google (al apretar Home en el control),
+ * Cuando aparece la pantalla de inicio de Google o de Amazon (al apretar Home en el control),
  * abre Pachi TV encima. No reemplaza el launcher del sistema.
  */
 class InicioService : AccessibilityService() {
@@ -25,6 +25,7 @@ class InicioService : AccessibilityService() {
     override fun onInterrupt() {}
 
     private companion object {
-        val LAUNCHERS = setOf("com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher")
+        // Google TV, Android TV viejo y Fire TV (Amazon)
+        val LAUNCHERS = setOf("com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher", "com.amazon.tv.launcher")
     }
 }

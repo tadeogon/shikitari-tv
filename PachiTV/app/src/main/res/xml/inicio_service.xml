@@ -5,4 +5,4 @@
     android:canRetrieveWindowContent="false"
     android:description="@string/servicio_descripcion"
     android:notificationTimeout="0"
-    android:packageNames="com.google.android.apps.tv.launcherx,com.google.android.tvlauncher" />
+    android:packageNames="com.google.android.apps.tv.launcherx,com.google.android.tvlauncher,com.amazon.tv.launcher" />
