@@ -90,3 +90,4 @@ INSTALADA Pachi 1.23 (botón TV y Canal +/− remapeables)
 AJUSTE    Botón TV → ClipBox
 INSTALADA Spotify (desde la tienda de Amazon)
 AJUSTE    auto_time_zone 1 -> 0 y zona horaria GMT -> America/Argentina/Buenos_Aires
+INSTALADA Stremio 1.10.4 (APK oficial de dl.strem.io, armeabi-v7a)
