@@ -525,11 +525,20 @@ class MainActivity : Activity() {
     private fun armarOptimizar(): View = pagina("Optimizar la TV") { col ->
         val caja = tarjeta(col)
         caja.addView(nota(
-            "Limpieza segura: quita ${AccionesTv.LIMPIEZA_SEGURA.size} apps de Google que no hacen falta (juegos, comentarios, impresión, " +
-                "lector de pantalla, etc.), libera caché y acelera las animaciones. Todo se puede deshacer.",
+            "La app se da cuenta sola de qué TV es:\n" +
+                "• Google TV: quita ${AccionesTv.LIMPIEZA_SEGURA.size} apps de Google que no hacen falta (juegos, comentarios, impresión, etc.).\n" +
+                "• Fire TV: apaga ${AccionesTv.LIMPIEZA_FIRE.size} apps de Amazon de rastreo, publicidad, compras y promos, y el rastreo " +
+                "publicitario. Alexa, Prime Video, la tienda y el control no se tocan.\n" +
+                "En las dos libera caché, acelera las animaciones y te muestra cuánta memoria ganaste. Todo se puede deshacer.",
         ))
         boton(caja, "Optimizar", principal = true) { acciones.optimizar() }
+        boton(caja, "Cerrar apps abiertas") { acciones.cerrarApps() }
         boton(caja, "Deshacer optimización") { acciones.deshacer() }
+
+        col.addView(subtitulo("Si algo sale mal"))
+        val emergencia = tarjeta(col)
+        emergencia.addView(nota("Solo Fire TV: si después de optimizar el inicio de Amazon se ve en negro, esto vuelve a prender lo que lo dibuja."))
+        boton(emergencia, "El inicio de Amazon quedó en negro") { acciones.emergenciaFire() }
     }
 
     // ---------- Botones del control ----------

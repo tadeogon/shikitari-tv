@@ -118,7 +118,18 @@ class AccionesTv(private val contexto: Context, private val tv: ConexionTv) {
 
     // ---------- Optimizar ----------
 
+    private fun esFire(): Boolean =
+        tv.ejecutar("getprop ro.product.manufacturer").trim().equals("Amazon", ignoreCase = true)
+
+    /** Memoria libre de la TV en MB (lo que Android puede usar sin cerrar nada). */
+    private fun memoriaLibreMb(): Long =
+        tv.ejecutar("grep MemAvailable /proc/meminfo").trim().split(Regex("\\s+")).getOrNull(1)?.toLongOrNull()?.div(1024) ?: -1
+
+    private fun paquetes(comando: String): Set<String> =
+        tv.ejecutar(comando).lines().map { it.trim().removePrefix("package:") }.filter { it.isNotBlank() }.toSet()
+
     fun optimizar(): String {
+        if (esFire()) return optimizarFire()
         val id = idTv()
         val log = StringBuilder("Espacio libre antes: ${espacioLibre()}\n")
         val quitados = leerQuitados(id)
@@ -151,10 +162,114 @@ class AccionesTv(private val contexto: Context, private val tv: ConexionTv) {
         return log.toString()
     }
 
+    /**
+     * Fire TV: apaga (no borra) las apps de Amazon de telemetría, publicidad, compras, promos, tutoriales y
+     * restos de Android, y apaga el rastreo publicitario. Lista probada en el Fire TV Stick 4K Max con dos
+     * reinicios (guías cleanyourtv y dumbtv). Alexa, Prime Video, la tienda y el control no se tocan.
+     */
+    private fun optimizarFire(): String {
+        val id = idTv()
+        val antes = memoriaLibreMb()
+        val log = StringBuilder()
+        val instalados = paquetes("pm list packages")
+        val yaApagados = paquetes("pm list packages -d")
+        val apagados = leerLista("apagados_$id")
+        var nuevos = 0
+        val fallas = mutableListOf<String>()
+        for (paquete in LIMPIEZA_FIRE) {
+            if (paquete !in instalados || paquete in yaApagados) continue
+            val r = tv.ejecutar("pm disable-user --user 0 $paquete")
+            if (r.contains("disabled-user")) {
+                apagados.add(paquete)
+                guardarLista("apagados_$id", apagados) // se anota en el momento
+                nuevos++
+            } else {
+                fallas += "$paquete: ${r.lines().lastOrNull { it.isNotBlank() } ?: r}"
+            }
+        }
+        log.append("Apps de Amazon apagadas ahora: $nuevos (en total: ${paquetes("pm list packages -d").size})\n")
+        fallas.forEach { log.append("No se pudo apagar $it\n") }
+
+        // Privacidad: se guarda el valor original una sola vez, para poder volver atrás.
+        if (!prefs.contains("privacidad_$id")) {
+            val originales = AJUSTES_FIRE.joinToString("\n") { (ns, clave, _) -> "$ns $clave ${tv.ejecutar("settings get $ns $clave").trim()}" }
+            prefs.edit().putString("privacidad_$id", originales).commit()
+        }
+        AJUSTES_FIRE.forEach { (ns, clave, valor) -> tv.ejecutar("settings put $ns $clave $valor") }
+        log.append("Rastreo publicitario y videos automáticos del inicio apagados ✓\n")
+
+        if (!prefs.contains("anim_$id")) {
+            val originales = ESCALAS.map { tv.ejecutar("settings get global $it").let { v -> if (v == "null" || v.isBlank()) "1.0" else v } }
+            prefs.edit().putString("anim_$id", originales.joinToString(",")).apply()
+        }
+        // animator_duration_scale queda en 1.0: en 0.5 el menú lateral de Amazon se cierra sin abrir nada.
+        ESCALAS.forEach { clave -> tv.ejecutar("settings put global $clave ${if (clave == "animator_duration_scale") "1.0" else "0.5"}") }
+        tv.ejecutar("pm trim-caches 999G", segundos = 120)
+        log.append("Animaciones más rápidas (la del menú queda normal) y caché liberada ✓\n")
+        log.append("Memoria libre: $antes MB → ${memoriaLibreMb()} MB\n")
+        log.append("Conviene reiniciar el Fire TV una vez para que se note del todo.")
+        return log.toString()
+    }
+
+    /** Cierra las apps que quedaron abiertas en segundo plano (no los launchers ni el teclado). */
+    fun cerrarApps(): String {
+        val antes = memoriaLibreMb()
+        val mantener = setOf(PAQUETE_SHIKITARI, PACHI.paquete, SOLARI.paquete, contexto.packageName)
+        val cerradas = mutableListOf<String>()
+        for (paquete in paquetes("pm list packages -3")) {
+            if (paquete in mantener) continue
+            if (tv.ejecutar("pidof $paquete").isBlank()) continue // no estaba abierta
+            tv.ejecutar("am force-stop $paquete")
+            cerradas += ControlActivity.NOMBRES[paquete] ?: paquete.substringAfterLast('.')
+        }
+        tv.ejecutar("am kill-all") // procesos de fondo que el sistema puede volver a abrir solo si hacen falta
+        Thread.sleep(1500)
+        val texto = if (cerradas.isEmpty()) "No había apps tuyas abiertas" else "Cerradas: ${cerradas.joinToString(", ")}"
+        return "$texto ✓\nMemoria libre: $antes MB → ${memoriaLibreMb()} MB"
+    }
+
+    /** Si el inicio de Amazon quedó en negro después de una limpieza, prende lo que lo dibuja (guía de la comunidad). */
+    fun emergenciaFire(): String {
+        if (!esFire()) return "Esto es solo para Fire TV."
+        val id = idTv()
+        val apagados = leerLista("apagados_$id")
+        val log = StringBuilder()
+        for (paquete in EMERGENCIA_FIRE) {
+            val r = tv.ejecutar("pm enable $paquete")
+            log.append("$paquete: ${if (r.contains("enabled")) "prendida" else r}\n")
+            apagados.remove(paquete)
+        }
+        guardarLista("apagados_$id", apagados)
+        tv.ejecutar("am start -n com.amazon.tv.launcher/.ui.HomeActivity_vNext")
+        log.append("Listo: el inicio de Amazon debería volver a verse. Si no, usá Deshacer optimización.")
+        return log.toString()
+    }
+
     fun deshacer(): String {
         val id = idTv()
         val quitados = leerQuitados(id)
         val log = StringBuilder()
+        // Fire TV: volver a prender lo apagado y dejar la privacidad como estaba.
+        val apagados = leerLista("apagados_$id")
+        if (apagados.isNotEmpty()) {
+            var prendidas = 0
+            for (paquete in apagados.toList()) {
+                if (tv.ejecutar("pm enable $paquete").contains("enabled")) prendidas++
+                apagados.remove(paquete)
+                guardarLista("apagados_$id", apagados)
+            }
+            log.append("Apps de Amazon prendidas de nuevo: $prendidas\n")
+        }
+        prefs.getString("privacidad_$id", null)?.let { texto ->
+            texto.lines().forEach { linea ->
+                val partes = linea.split(' ', limit = 3)
+                if (partes.size < 3) return@forEach
+                val (ns, clave, valor) = partes
+                if (valor == "null" || valor.isBlank()) tv.ejecutar("settings delete $ns $clave") else tv.ejecutar("settings put $ns $clave $valor")
+            }
+            prefs.edit().remove("privacidad_$id").apply()
+            log.append("Ajustes de privacidad como estaban\n")
+        }
         for (paquete in quitados.toList()) {
             val r = tv.ejecutar("cmd package install-existing $paquete")
             log.append("$paquete: ${if (r.contains("installed")) "restaurado" else r}\n")
@@ -167,6 +282,13 @@ class AccionesTv(private val contexto: Context, private val tv: ConexionTv) {
             log.append("Animaciones restauradas\n")
         }
         return log.toString().ifBlank { "No hay nada para deshacer en esta TV" }.trimEnd()
+    }
+
+    private fun leerLista(clave: String): MutableList<String> =
+        (prefs.getString(clave, "") ?: "").split(',').filter { it.isNotBlank() }.toMutableList()
+
+    private fun guardarLista(clave: String, lista: List<String>) {
+        prefs.edit().putString(clave, lista.distinct().joinToString(",")).commit()
     }
 
     private fun leerQuitados(id: String): MutableList<String> =
@@ -205,6 +327,61 @@ class AccionesTv(private val contexto: Context, private val tv: ConexionTv) {
             "com.android.cameraextensions",
             "com.google.android.hotspot2.osulogin",
         )
+
+        /**
+         * Fire TV: se APAGAN (pm disable-user), nunca se borran. Probada en el Fire TV Stick 4K Max (AFTKRT,
+         * Fire OS 8) con dos reinicios. Fuera a propósito: Alexa, Prime Video, la tienda, el teclado, el control,
+         * las actualizaciones, com.amazon.imp (sin él el inicio de Amazon queda en negro), dialservice ("Enviar a
+         * la TV" de YouTube), y franktvinput/tifobserver (en los televisores con Fire TV manejan las entradas HDMI).
+         */
+        val LIMPIEZA_FIRE = listOf(
+            // Telemetría, métricas y rastreo
+            "com.amazon.client.metrics.api", "com.amazon.device.telemetry.emitter", "com.amazon.wirelessmetrics.service",
+            "com.amazon.perfcollection", "com.amazon.perfc", "com.amazon.dp.logger", "com.amazon.ceviche",
+            "com.amazon.tv.developer.dataservice", "com.amazon.livedeviceservice", "com.amazon.privacypassservice",
+            "com.amazon.wifilocker", "com.amazon.tv.acr", "com.amazon.ftvspatial", "com.amazon.neo.minerva",
+            "com.amazon.neo.minerva.logcat",
+            // Publicidad, recomendaciones, promos y compras
+            "com.amazon.kso.blackbird", "com.amazon.sneakpeek", "com.amazon.hybridadidservice", "com.amazon.media.recommendations",
+            "com.amazon.providers.contentsupport", "com.amazon.tv.easyupgrade", "com.amazon.shoptv.client",
+            "com.amazon.shoptv.firetv.client", "com.amazon.hedwig", "com.amazon.systemnotices", "com.amazon.uxnotification",
+            "com.amazon.tv.releasenotes", "com.amazon.tv.earlyaccess", "com.amazon.gamehub",
+            // Transmitir con apps de Amazon (YouTube sigue andando)
+            "com.amazon.awvflingreceiver", "com.amazon.cast.sink", "com.amazon.whisperplay.service.install",
+            "com.amazon.whisperjoin.middleware.v2.np",
+            // Casa inteligente / Matter
+            "com.amazon.tv.matter", "com.amazon.tv.mattercohost", "com.amazon.smarthomemapviewapp",
+            // Soporte y servicios de fondo
+            "com.amazon.tv.support", "com.amazon.firetv.troubleshooting", "com.amazon.tv.ottssocompanionapp",
+            "com.amazon.device_remote_config_sync_service", "com.amazon.ods.kindleconnect", "com.amazon.prism.android.service",
+            "com.amazon.sharingservice.android.client.proxy", "com.amazon.tv.ffsprovisioneeclient", "com.amazon.minitv.android.app",
+            "com.amazon.tv.website_launcher",
+            // Tutoriales, avisos legales y apps vacías
+            "com.amazon.tv.legal.notices", "com.amazon.tv.legalresources", "com.amazon.storm.lightning.tutorial",
+            "com.amazon.tmm.tutorial", "com.amazon.dummy.alarmclock", "com.amazon.dummy.calendar", "com.amazon.dummy.contacts",
+            "com.amazon.dummy.gallery", "com.amazon.dummy.music", "com.amazon.dummy.settings", "com.amazon.dummy.soundpicker",
+            // Restos de Android
+            "com.android.cts.ctsshim", "com.android.cts.priv.ctsshim", "com.android.protips", "com.android.dreams.basic",
+            "com.android.printservice.recommendation", "com.android.bookmarkprovider", "com.android.calllogbackup",
+            "com.android.smspush", "com.android.mms.service", "com.android.hotspot2.osulogin", "com.android.traceur",
+            "com.android.onetimeinitializer", "com.android.carrierconfig", "com.android.safetyregulatoryinfo",
+            "com.android.htmlviewer",
+        )
+
+        /** Privacidad en Fire TV: rastreo publicitario, métricas de uso, avisos emergentes y videos automáticos del inicio. */
+        val AJUSTES_FIRE = listOf(
+            Triple("secure", "amz_limit_ad_tracking", "1"),
+            Triple("secure", "limit_ad_tracking", "1"),
+            Triple("secure", "non_amz_limit_ad_tracking", "1"),
+            Triple("secure", "USAGE_METRICS_UPLOAD_ENABLED", "0"),
+            Triple("secure", "usage_metrics_marketing_enabled", "0"),
+            Triple("global", "heads_up_notifications_enabled", "0"),
+            Triple("global", "com.amazon.tv.settings.featured_item_video_enabled", "0"),
+            Triple("global", "com.amazon.tv.settings.featured_item_video_volume", "0.0"),
+        )
+
+        /** Lo que hay que prender si el inicio de Amazon queda en negro (según la guía de la comunidad). */
+        val EMERGENCIA_FIRE = listOf("com.amazon.imp", "com.amazon.shoptv.client", "com.amazon.media.recommendations")
 
         /** Nunca se tocan: sin ellos la TV puede quedar inutilizable o sin control remoto. */
         val PROTEGIDOS = listOf(
