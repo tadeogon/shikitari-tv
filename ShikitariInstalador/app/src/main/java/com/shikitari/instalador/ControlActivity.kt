@@ -509,7 +509,7 @@ class ControlActivity : Activity() {
     private fun dp(valor: Int): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, valor.toFloat(), resources.displayMetrics).toInt()
 
-    private companion object {
+    companion object {
         const val COLUMNAS = 3
         const val CLAVE_FAVORITAS = "control_favoritas"
 

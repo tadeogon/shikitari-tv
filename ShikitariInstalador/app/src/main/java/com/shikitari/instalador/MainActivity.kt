@@ -51,7 +51,7 @@ class MainActivity : Activity() {
     private val acciones by lazy { AccionesTv(this, tv) }
     private val principal = Handler(Looper.getMainLooper())
 
-    private enum class Pantalla { INICIO, AGREGAR, SHIKITARI, PACHI, SOLARI, OPTIMIZAR, CLAUDE, HISTORIAL }
+    private enum class Pantalla { INICIO, AGREGAR, SHIKITARI, PACHI, SOLARI, OPTIMIZAR, CLAUDE, HISTORIAL, BOTONES }
 
     private lateinit var contenedor: FrameLayout
     private val pantallas = HashMap<Pantalla, View>()
@@ -151,6 +151,7 @@ class MainActivity : Activity() {
         Pantalla.OPTIMIZAR -> armarOptimizar()
         Pantalla.CLAUDE -> armarClaude()
         Pantalla.HISTORIAL -> armarHistorial()
+        Pantalla.BOTONES -> armarBotones()
     }
 
     /** Columna con scroll; las pantallas internas llevan arriba la flecha para volver. */
@@ -245,6 +246,7 @@ class MainActivity : Activity() {
             Triple("🍎", "Pachi TV", "Estilo Apple TV") to { ir(Pantalla.PACHI) },
             Triple("☀️", "Solari", "Launcher del trabajo") to { ir(Pantalla.SOLARI) },
             Triple("⚡", "Optimizar", "Más rápida y liviana") to { ir(Pantalla.OPTIMIZAR) },
+            Triple("🎛", "Botones", "Cambiar los del control") to { ir(Pantalla.BOTONES) },
             Triple("✨", "Claude", "Ayuda con problemas") to { ir(Pantalla.CLAUDE) },
         )
         mosaicosTv.clear()
@@ -528,6 +530,99 @@ class MainActivity : Activity() {
         ))
         boton(caja, "Optimizar", principal = true) { acciones.optimizar() }
         boton(caja, "Deshacer optimización") { acciones.deshacer() }
+    }
+
+    // ---------- Botones del control ----------
+
+    /** Botones de apps del control (los del Fire TV se llaman APP_1..APP_4 en el sistema). */
+    private val botonesControl = listOf(
+        "KEYCODE_APP_1" to "Botón Prime Video",
+        "KEYCODE_APP_2" to "Botón Netflix",
+        "KEYCODE_APP_3" to "Botón Disney+",
+        "KEYCODE_APP_4" to "Botón Peacock",
+    )
+
+    private fun claveBotones() = "botones_${conectada?.ip}"
+
+    private fun mapaBotones(): MutableMap<String, String> =
+        (prefs.getString(claveBotones(), "") ?: "").split(';').mapNotNull {
+            it.split('=', limit = 2).takeIf { p -> p.size == 2 }?.let { p -> p[0] to p[1] }
+        }.toMap().toMutableMap()
+
+    private fun nombreDeApp(paquete: String) =
+        ControlActivity.NOMBRES[paquete] ?: paquete.split('.').last { it.length > 2 }.replaceFirstChar { it.uppercase() }
+
+    private fun armarBotones(): View = pagina("Botones del control") { col ->
+        val caja = tarjeta(col)
+        caja.addView(nota(
+            "Elegí qué app abre cada botón de apps del control. Funciona con Pachi TV o Solari instalada y con su " +
+                "botón Inicio activado (usa el mismo servicio). Los botones que dejes \"como viene\" hacen lo de siempre.",
+        ))
+        val mapa = mapaBotones()
+        botonesControl.forEach { (tecla, nombre) ->
+            val b = Button(this).apply {
+                estilo(this, false)
+                isAllCaps = false
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                setPadding(dp(18), 0, dp(18), 0)
+            }
+            fun pintar() {
+                b.text = "$nombre  →  " + (mapa[tecla]?.let { nombreDeApp(it) } ?: "como viene")
+            }
+            pintar()
+            b.setOnClickListener { elegirAppPara(nombre) { paquete ->
+                if (paquete == null) mapa.remove(tecla) else mapa[tecla] = paquete
+                pintar()
+            } }
+            caja.addView(b, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply { topMargin = dp(8) })
+        }
+        boton(caja, "Guardar en la TV", principal = true) {
+            val texto = mapa.entries.joinToString(";") { "${it.key}=${it.value}" }
+            prefs.edit().putString(claveBotones(), texto).apply()
+            val instalados = tv.ejecutar("pm list packages").lines().map { it.trim().removePrefix("package:") }.toSet()
+            val launchers = listOf(AccionesTv.PACHI, AccionesTv.SOLARI).filter { it.paquete in instalados }
+            if (launchers.isEmpty()) return@boton "Primero instalá Pachi TV o Solari en esta TV."
+            val res = StringBuilder()
+            launchers.forEach { m ->
+                val r = tv.ejecutar("am broadcast -n ${m.paquete}/com.pachi.tv.ReceptorBotones --es mapa ${ConexionTv.comillas(texto)}")
+                val activo = tv.ejecutar("settings get secure enabled_accessibility_services").contains(m.servicioInicio)
+                res.append(if (r.contains("data=\"ok\"")) "Botones guardados en ${m.nombre} ✓" else "No se pudo guardar en ${m.nombre}: $r").append('\n')
+                if (!activo) res.append("Ojo: el botón Inicio de ${m.nombre} no está activado; activalo en su pantalla para que los botones funcionen.\n")
+            }
+            res.append(if (mapa.isEmpty()) "Todos los botones quedaron como vienen." else mapa.entries.joinToString("\n") { (t, p) ->
+                "${botonesControl.first { it.first == t }.second} → ${nombreDeApp(p)}"
+            })
+            res.toString().trim()
+        }
+    }
+
+    /** Lista las apps de la TV para elegir una. [listo] recibe null si eligió "como viene de fábrica". */
+    private fun elegirAppPara(boton: String, listo: (String?) -> Unit) {
+        if (conectada == null) {
+            avisar(false, "Primero conectá una TV: tocala en Mis TVs.")
+            return
+        }
+        trabajando("Buscando las apps de la TV")
+        trabajo.execute {
+            val apps = try {
+                val todas = tv.ejecutar("pm list packages").lines().map { it.trim().removePrefix("package:") }.filter { it.isNotBlank() }.toSet()
+                val terceros = tv.ejecutar("pm list packages -3").lines().map { it.trim().removePrefix("package:") }.filter { it.isNotBlank() }
+                (terceros + ControlActivity.NOMBRES.keys.filter { it in todas })
+                    .distinct().filter { it !in ControlActivity.OCULTAR }
+                    .map { it to nombreDeApp(it) }.sortedBy { it.second.lowercase() }
+            } catch (e: Exception) {
+                runOnUiThread { avisar(false, explicarError(e)) }
+                return@execute
+            }
+            runOnUiThread {
+                animarCartel(false)
+                val opciones = listOf("↺  Como viene de fábrica") + apps.map { it.second }
+                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("$boton abre…")
+                    .setItems(opciones.toTypedArray()) { _, i -> listo(if (i == 0) null else apps[i - 1].first) }
+                    .show()
+            }
+        }
     }
 
     // ---------- Claude ----------

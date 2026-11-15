@@ -99,5 +99,10 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/inicio_service" />
         </service>
+
+        <!-- Recibe qué app abre cada botón remapeado (lo manda el instalador del celular por adb) -->
+        <receiver
+            android:name=".ReceptorBotones"
+            android:exported="true" />
     </application>
 </manifest>
