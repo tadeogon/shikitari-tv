@@ -92,3 +92,15 @@ INSTALADA Spotify (desde la tienda de Amazon)
 AJUSTE    auto_time_zone 1 -> 0 y zona horaria GMT -> America/Argentina/Buenos_Aires
 INSTALADA Stremio 1.10.4 (APK oficial de dl.strem.io, armeabi-v7a)
 INSTALADA Pachi 1.24 (Ajustes, Bluetooth y Salida de sonido con atajos de Amazon)
+== Fase 2 opcionales (pedido: solo conservar Prime Video)
+APAGADA   com.amazon.tahoe -> Package com.amazon.tahoe new state: disabled-user
+APAGADA   com.amazon.bueller.music -> Package com.amazon.bueller.music new state: disabled-user
+APAGADA   com.amazon.bueller.photos -> Package com.amazon.bueller.photos new state: disabled-user
+APAGADA   com.amazon.cloud9 -> Package com.amazon.cloud9 new state: disabled-user
+REINICIO  02:44 para comprobar que todo persiste
+== Tras reinicio volvieron tahoe, bueller.music, bueller.photos, cloud9: se quitan solo para el usuario 0 (se restauran con: cmd package install-existing <paquete>)
+QUITADA   com.amazon.tahoe -> Success
+QUITADA   com.amazon.bueller.music -> Success
+QUITADA   com.amazon.bueller.photos -> Success
+QUITADA   com.amazon.cloud9 -> Failure [DELETE_FAILED_INTERNAL_ERROR]
+REINICIO 2: Music y Photos siguen quitadas; Kids (tahoe) y Silk (cloud9) vuelven solas en cada arranque (Amazon las restaura), se dejan; 74 apagadas; Pachi activo
