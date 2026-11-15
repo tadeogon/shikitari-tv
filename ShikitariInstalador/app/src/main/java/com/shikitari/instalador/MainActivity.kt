@@ -534,6 +534,7 @@ class MainActivity : Activity() {
         boton(caja, "Optimizar", principal = true) { acciones.optimizar() }
         boton(caja, "Cerrar apps abiertas") { acciones.cerrarApps() }
         boton(caja, "Deshacer optimización") { acciones.deshacer() }
+        caja.addView(botonChico("Ver la pantalla nueva (prueba)") { startActivity(Intent(this, com.shikitari.instalador.ui.OptimizarActivity::class.java)) })
 
         col.addView(subtitulo("Si algo sale mal"))
         val emergencia = tarjeta(col)

@@ -1,6 +1,7 @@
 ﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -11,8 +12,8 @@ android {
         applicationId = "com.shikitari.instalador.nuevo"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "2.8"
+        versionCode = 15
+        versionName = "2.9"
     }
 
     buildTypes {
@@ -30,6 +31,8 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    // Solo la pantalla nueva de Optimizar (paquete ui/) usa Compose; el resto sigue con Views.
+    buildFeatures { compose = true }
 
     packaging {
         resources {
@@ -72,4 +75,13 @@ dependencies {
     implementation("org.bouncycastle:bcpkix-jdk15to18:1.81")
     // SDK oficial de Claude (Anthropic)
     implementation("com.anthropic:anthropic-java:2.34.0")
+    // Interfaz «F» de Optimizar (paquete ui/)
+    val composeBom = platform("androidx.compose:compose-bom:2025.01.00")
+    implementation(composeBom)
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 }
