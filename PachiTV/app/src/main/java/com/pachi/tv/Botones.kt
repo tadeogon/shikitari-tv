@@ -30,6 +30,8 @@ object Botones {
         "KEYCODE_APP_2" to "netflix",             // Netflix
         "KEYCODE_APP_3" to "B07Y8SJGCV",          // Disney+
         "KEYCODE_APP_4" to "B08BG9MPT9",          // Peacock
+        "KEYCODE_LIVE_TV" to "showGuideButtonContent", // botón TV (guía de canales)
+        // Canal + y Canal − no pasan por Amazon: llegan directo a onKeyEvent.
     )
 
     /** Si la línea del registro es un botón remapeado del Fire TV, devuelve la app que hay que abrir. */
@@ -54,6 +56,9 @@ object Botones {
         val texto = contexto.getSharedPreferences("botones", Context.MODE_PRIVATE).getString(CLAVE, "") ?: ""
         leer(texto).also { cache = it }
     }
+
+    fun texto(contexto: Context): String =
+        contexto.getSharedPreferences("botones", Context.MODE_PRIVATE).getString(CLAVE, "") ?: ""
 
     fun guardar(contexto: Context, texto: String) {
         contexto.getSharedPreferences("botones", Context.MODE_PRIVATE).edit().putString(CLAVE, texto).apply()
@@ -83,7 +88,12 @@ object Botones {
  */
 class ReceptorBotones : BroadcastReceiver() {
     override fun onReceive(contexto: Context, intent: Intent) {
-        val mapa = intent.getStringExtra("mapa") ?: return
+        val mapa = intent.getStringExtra("mapa")
+        if (mapa == null) {
+            // Sin mapa: el instalador pregunta cómo están configurados ahora.
+            resultData = Botones.texto(contexto)
+            return
+        }
         Botones.guardar(contexto, mapa)
         resultData = "ok"
     }

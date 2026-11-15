@@ -534,12 +534,15 @@ class MainActivity : Activity() {
 
     // ---------- Botones del control ----------
 
-    /** Botones de apps del control (los del Fire TV se llaman APP_1..APP_4 en el sistema). */
+    /** Botones del control que se pueden cambiar (los de apps del Fire TV se llaman APP_1..APP_4 en el sistema). */
     private val botonesControl = listOf(
         "KEYCODE_APP_1" to "Botón Prime Video",
         "KEYCODE_APP_2" to "Botón Netflix",
         "KEYCODE_APP_3" to "Botón Disney+",
         "KEYCODE_APP_4" to "Botón Peacock",
+        "KEYCODE_LIVE_TV" to "Botón TV (guía)",
+        "KEYCODE_CHANNEL_UP" to "Canal +",
+        "KEYCODE_CHANNEL_DOWN" to "Canal −",
     )
 
     private fun claveBotones() = "botones_${conectada?.ip}"
@@ -559,6 +562,21 @@ class MainActivity : Activity() {
                 "botón Inicio activado (usa el mismo servicio). Los botones que dejes \"como viene\" hacen lo de siempre.",
         ))
         val mapa = mapaBotones()
+        val pintores = mutableListOf<() -> Unit>()
+        // Lo que esté configurado en la TV manda (puede haberse cambiado desde otro celular o la PC).
+        if (conectada != null) trabajo.execute {
+            try {
+                val salida = tv.ejecutar("am broadcast -n ${AccionesTv.PACHI.paquete}/com.pachi.tv.ReceptorBotones")
+                val enTv = Regex("data=\"([^\"]*)\"").find(salida)?.groupValues?.get(1) ?: return@execute
+                runOnUiThread {
+                    mapa.clear()
+                    enTv.split(';').forEach { par -> par.split('=', limit = 2).takeIf { it.size == 2 }?.let { mapa[it[0]] = it[1] } }
+                    prefs.edit().putString(claveBotones(), enTv).apply()
+                    pintores.forEach { it() }
+                }
+            } catch (_: Exception) {
+            }
+        }
         botonesControl.forEach { (tecla, nombre) ->
             val b = Button(this).apply {
                 estilo(this, false)
@@ -570,6 +588,7 @@ class MainActivity : Activity() {
                 b.text = "$nombre  →  " + (mapa[tecla]?.let { nombreDeApp(it) } ?: "como viene")
             }
             pintar()
+            pintores += { pintar() }
             b.setOnClickListener { elegirAppPara(nombre) { paquete ->
                 if (paquete == null) mapa.remove(tecla) else mapa[tecla] = paquete
                 pintar()
