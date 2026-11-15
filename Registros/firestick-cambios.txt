@@ -1,0 +1,85 @@
+== Limpieza Fire Stick 192.168.100.77 - 2026-11-15 01:30
+APAGADA   com.amazon.client.metrics.api -> Package com.amazon.client.metrics.api new state: disabled-user
+APAGADA   com.amazon.device.telemetry.emitter -> Package com.amazon.device.telemetry.emitter new state: disabled-user
+APAGADA   com.amazon.wirelessmetrics.service -> Package com.amazon.wirelessmetrics.service new state: disabled-user
+APAGADA   com.amazon.perfcollection -> Package com.amazon.perfcollection new state: disabled-user
+APAGADA   com.amazon.perfc -> Package com.amazon.perfc new state: disabled-user
+APAGADA   com.amazon.dp.logger -> Package com.amazon.dp.logger new state: disabled-user
+APAGADA   com.amazon.ceviche -> Package com.amazon.ceviche new state: disabled-user
+APAGADA   com.amazon.tv.developer.dataservice -> Package com.amazon.tv.developer.dataservice new state: disabled-user
+APAGADA   com.amazon.livedeviceservice -> Package com.amazon.livedeviceservice new state: disabled-user
+APAGADA   com.amazon.privacypassservice -> Package com.amazon.privacypassservice new state: disabled-user
+APAGADA   com.amazon.wifilocker -> Package com.amazon.wifilocker new state: disabled-user
+APAGADA   com.amazon.tv.acr -> Package com.amazon.tv.acr new state: disabled-user
+APAGADA   com.amazon.ftvspatial -> Package com.amazon.ftvspatial new state: disabled-user
+APAGADA   com.amazon.neo.minerva -> Package com.amazon.neo.minerva new state: disabled-user
+APAGADA   com.amazon.neo.minerva.logcat -> Package com.amazon.neo.minerva.logcat new state: disabled-user
+APAGADA   com.amazon.kso.blackbird -> Package com.amazon.kso.blackbird new state: disabled-user
+APAGADA   com.amazon.sneakpeek -> Package com.amazon.sneakpeek new state: disabled-user
+APAGADA   com.amazon.hybridadidservice -> Package com.amazon.hybridadidservice new state: disabled-user
+APAGADA   com.amazon.media.recommendations -> Package com.amazon.media.recommendations new state: disabled-user
+APAGADA   com.amazon.providers.contentsupport -> Package com.amazon.providers.contentsupport new state: disabled-user
+APAGADA   com.amazon.tv.easyupgrade -> Package com.amazon.tv.easyupgrade new state: disabled-user
+APAGADA   com.amazon.shoptv.client -> Package com.amazon.shoptv.client new state: disabled-user
+APAGADA   com.amazon.shoptv.firetv.client -> Package com.amazon.shoptv.firetv.client new state: disabled-user
+APAGADA   com.amazon.hedwig -> Package com.amazon.hedwig new state: disabled-user
+APAGADA   com.amazon.franktvinput -> Package com.amazon.franktvinput new state: disabled-user
+APAGADA   com.amazon.tifobserver -> Package com.amazon.tifobserver new state: disabled-user
+APAGADA   com.amazon.systemnotices -> Package com.amazon.systemnotices new state: disabled-user
+APAGADA   com.amazon.uxnotification -> Package com.amazon.uxnotification new state: disabled-user
+APAGADA   com.amazon.tv.releasenotes -> Package com.amazon.tv.releasenotes new state: disabled-user
+APAGADA   com.amazon.tv.earlyaccess -> Package com.amazon.tv.earlyaccess new state: disabled-user
+APAGADA   com.amazon.gamehub -> Package com.amazon.gamehub new state: disabled-user
+APAGADA   com.amazon.awvflingreceiver -> Package com.amazon.awvflingreceiver new state: disabled-user
+APAGADA   com.amazon.cast.sink -> Package com.amazon.cast.sink new state: disabled-user
+APAGADA   com.amazon.whisperplay.service.install -> Package com.amazon.whisperplay.service.install new state: disabled-user
+APAGADA   com.amazon.whisperjoin.middleware.v2.np -> Package com.amazon.whisperjoin.middleware.v2.np new state: disabled-user
+APAGADA   com.amazon.tv.matter -> Package com.amazon.tv.matter new state: disabled-user
+APAGADA   com.amazon.tv.mattercohost -> Package com.amazon.tv.mattercohost new state: disabled-user
+APAGADA   com.amazon.smarthomemapviewapp -> Package com.amazon.smarthomemapviewapp new state: disabled-user
+APAGADA   com.amazon.tv.support -> Package com.amazon.tv.support new state: disabled-user
+APAGADA   com.amazon.firetv.troubleshooting -> Package com.amazon.firetv.troubleshooting new state: disabled-user
+APAGADA   com.amazon.tv.ottssocompanionapp -> Package com.amazon.tv.ottssocompanionapp new state: disabled-user
+APAGADA   com.amazon.device_remote_config_sync_service -> Package com.amazon.device_remote_config_sync_service new state: disabled-user
+APAGADA   com.amazon.ods.kindleconnect -> Package com.amazon.ods.kindleconnect new state: disabled-user
+APAGADA   com.amazon.prism.android.service -> Package com.amazon.prism.android.service new state: disabled-user
+APAGADA   com.amazon.sharingservice.android.client.proxy -> Package com.amazon.sharingservice.android.client.proxy new state: disabled-user
+APAGADA   com.amazon.tv.ffsprovisioneeclient -> Package com.amazon.tv.ffsprovisioneeclient new state: disabled-user
+APAGADA   com.amazon.minitv.android.app -> Package com.amazon.minitv.android.app new state: disabled-user
+APAGADA   com.amazon.tv.website_launcher -> Package com.amazon.tv.website_launcher new state: disabled-user
+APAGADA   com.amazon.tv.legal.notices -> Package com.amazon.tv.legal.notices new state: disabled-user
+APAGADA   com.amazon.tv.legalresources -> Package com.amazon.tv.legalresources new state: disabled-user
+APAGADA   com.amazon.storm.lightning.tutorial -> Package com.amazon.storm.lightning.tutorial new state: disabled-user
+APAGADA   com.amazon.tmm.tutorial -> Package com.amazon.tmm.tutorial new state: disabled-user
+APAGADA   com.amazon.dummy.alarmclock -> Package com.amazon.dummy.alarmclock new state: disabled-user
+APAGADA   com.amazon.dummy.calendar -> Package com.amazon.dummy.calendar new state: disabled-user
+APAGADA   com.amazon.dummy.contacts -> Package com.amazon.dummy.contacts new state: disabled-user
+APAGADA   com.amazon.dummy.gallery -> Package com.amazon.dummy.gallery new state: disabled-user
+APAGADA   com.amazon.dummy.music -> Package com.amazon.dummy.music new state: disabled-user
+APAGADA   com.amazon.dummy.settings -> Package com.amazon.dummy.settings new state: disabled-user
+APAGADA   com.amazon.dummy.soundpicker -> Package com.amazon.dummy.soundpicker new state: disabled-user
+APAGADA   com.android.cts.ctsshim -> Package com.android.cts.ctsshim new state: disabled-user
+APAGADA   com.android.cts.priv.ctsshim -> Package com.android.cts.priv.ctsshim new state: disabled-user
+APAGADA   com.android.protips -> Package com.android.protips new state: disabled-user
+APAGADA   com.android.dreams.basic -> Package com.android.dreams.basic new state: disabled-user
+APAGADA   com.android.printservice.recommendation -> Package com.android.printservice.recommendation new state: disabled-user
+APAGADA   com.android.bookmarkprovider -> Package com.android.bookmarkprovider new state: disabled-user
+APAGADA   com.android.calllogbackup -> Package com.android.calllogbackup new state: disabled-user
+APAGADA   com.android.smspush -> Package com.android.smspush new state: disabled-user
+APAGADA   com.android.mms.service -> Package com.android.mms.service new state: disabled-user
+APAGADA   com.android.hotspot2.osulogin -> Package com.android.hotspot2.osulogin new state: disabled-user
+APAGADA   com.android.traceur -> Package com.android.traceur new state: disabled-user
+APAGADA   com.android.onetimeinitializer -> Package com.android.onetimeinitializer new state: disabled-user
+APAGADA   com.android.carrierconfig -> Package com.android.carrierconfig new state: disabled-user
+APAGADA   com.android.safetyregulatoryinfo -> Package com.android.safetyregulatoryinfo new state: disabled-user
+APAGADA   com.android.htmlviewer -> Package com.android.htmlviewer new state: disabled-user
+== Ajustes de privacidad
+AJUSTE    secure amz_limit_ad_tracking: 1 -> 1
+AJUSTE    secure limit_ad_tracking: 1 -> 1
+AJUSTE    secure non_amz_limit_ad_tracking: 0 -> 1
+AJUSTE    secure USAGE_METRICS_UPLOAD_ENABLED: 0 -> 0
+AJUSTE    secure usage_metrics_marketing_enabled: 0 -> 0
+AJUSTE    global heads_up_notifications_enabled: 1 -> 0
+AJUSTE    global com.amazon.tv.settings.featured_item_video_enabled: null -> 0
+AJUSTE    global com.amazon.tv.settings.featured_item_video_volume: null -> 0.0
+AJUSTE    Pachi 1.18 instalada y servicio de Inicio reactivado (se había apagado por el cierre por memoria)

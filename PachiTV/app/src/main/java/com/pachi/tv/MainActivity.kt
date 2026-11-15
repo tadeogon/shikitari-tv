@@ -1302,7 +1302,18 @@ class MainActivity : Activity() {
         } else {
             medidas.width = dp(ALTO_CABECERA) * 16 / 9
             medidas.height = dp(ALTO_CABECERA)
-            destacada.setImageDrawable(imagenGrande(app) ?: imagen)
+            // Copia propia: si la cabecera y la tarjeta comparten el mismo dibujo, se pelean por el tamaño y los
+            // íconos adaptables rehacen su máscara una y otra vez hasta llenar la memoria (pasó en el Fire Stick).
+            val grande = try {
+                imagenGrande(app)
+            } catch (e: OutOfMemoryError) {
+                null
+            }
+            try {
+                destacada.setImageDrawable(grande ?: copiaDe(imagen))
+            } catch (e: OutOfMemoryError) {
+                destacada.setImageDrawable(null) // mejor sin imagen que cerrar el launcher
+            }
             destacada.setBackgroundColor(if (app.banner == null) colorDeMarca(imagen) else colorDeBorde(imagen))
             destacada.clipToOutline = true
             val relleno = if (app.banner == null) dp(28) else 0
@@ -1341,8 +1352,17 @@ class MainActivity : Activity() {
     }
 
     /** Pide a la app la versión más grande de su banner; null si no trae una mejor que la que ya se ve. */
+    private fun copiaDe(d: Drawable): Drawable = d.constantState?.newDrawable(resources)?.mutate() ?: d
+
+    /** Equipos con poca memoria (Fire Stick, TVs baratas): ahí no se cargan las versiones en alta resolución. */
+    private val pocaMemoria by lazy {
+        val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        val info = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        am.isLowRamDevice || info.totalMem < 2_500L * 1024 * 1024
+    }
+
     private fun imagenGrande(app: App): Drawable? {
-        if (app.bannerId == 0) return null
+        if (app.bannerId == 0 || pocaMemoria) return null
         return try {
             val res = packageManager.getResourcesForApplication(app.pkg)
             val valor = TypedValue()

@@ -1,0 +1,94 @@
+# Fire TV Stick 4K Max 2023 (AFTKRT) - limpieza sin Alexa
+# Basada en cleanyourtv examples/amazon-fire-tv-stick-4k-max-2023/debloat.txt
+# Se APAGAN con: pm disable-user --user 0 <paquete>
+# Se deshacen con: pm enable <paquete>
+# Fuera de la lista a propósito: todo lo de Alexa, y com.amazon.dialservice
+# (lo usa "Enviar a la TV" de YouTube desde el celular).
+
+# Telemetría, métricas y rastreo
+com.amazon.client.metrics.api
+com.amazon.device.telemetry.emitter
+com.amazon.wirelessmetrics.service
+com.amazon.perfcollection
+com.amazon.perfc
+com.amazon.dp.logger
+com.amazon.ceviche
+com.amazon.tv.developer.dataservice
+com.amazon.livedeviceservice
+com.amazon.privacypassservice
+com.amazon.wifilocker
+com.amazon.tv.acr
+com.amazon.ftvspatial
+com.amazon.neo.minerva
+com.amazon.neo.minerva.logcat
+
+# Publicidad, recomendaciones, promos y compras
+com.amazon.kso.blackbird
+com.amazon.sneakpeek
+com.amazon.hybridadidservice
+com.amazon.media.recommendations
+com.amazon.providers.contentsupport
+com.amazon.tv.easyupgrade
+com.amazon.shoptv.client
+com.amazon.shoptv.firetv.client
+com.amazon.hedwig
+com.amazon.franktvinput
+com.amazon.tifobserver
+com.amazon.systemnotices
+com.amazon.uxnotification
+com.amazon.tv.releasenotes
+com.amazon.tv.earlyaccess
+com.amazon.gamehub
+
+# Transmitir con apps de Amazon (YouTube sigue andando)
+com.amazon.awvflingreceiver
+com.amazon.cast.sink
+com.amazon.whisperplay.service.install
+com.amazon.whisperjoin.middleware.v2.np
+
+# Casa inteligente / Matter
+com.amazon.tv.matter
+com.amazon.tv.mattercohost
+com.amazon.smarthomemapviewapp
+
+# Soporte y servicios de fondo
+com.amazon.tv.support
+com.amazon.firetv.troubleshooting
+com.amazon.tv.ottssocompanionapp
+com.amazon.device_remote_config_sync_service
+com.amazon.ods.kindleconnect
+com.amazon.prism.android.service
+com.amazon.sharingservice.android.client.proxy
+com.amazon.tv.ffsprovisioneeclient
+com.amazon.minitv.android.app
+com.amazon.tv.website_launcher
+
+# Tutoriales, avisos legales y apps vacías
+com.amazon.tv.legal.notices
+com.amazon.tv.legalresources
+com.amazon.storm.lightning.tutorial
+com.amazon.tmm.tutorial
+com.amazon.dummy.alarmclock
+com.amazon.dummy.calendar
+com.amazon.dummy.contacts
+com.amazon.dummy.gallery
+com.amazon.dummy.music
+com.amazon.dummy.settings
+com.amazon.dummy.soundpicker
+
+# Restos de Android
+com.android.cts.ctsshim
+com.android.cts.priv.ctsshim
+com.android.protips
+com.android.dreams.basic
+com.android.printservice.recommendation
+com.android.bookmarkprovider
+com.android.calllogbackup
+com.android.smspush
+com.android.mms.service
+com.android.hotspot2.osulogin
+com.android.traceur
+com.android.onetimeinitializer
+com.android.carrierconfig
+com.android.safetyregulatoryinfo
+com.android.htmlviewer
