@@ -11,12 +11,12 @@ android {
         applicationId = "com.pachi.tv"
         minSdk = 22
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.25"
+        versionCode = 27
+        versionName = "1.26"
     }
 
     // Dos versiones del mismo launcher: la tuya y la del trabajo.
-    // Comparten todo el cÃ³digo; solo cambian el nombre y el logo (carpeta src/trabajo/res).
+    // Comparten todo el código; solo cambian el nombre y el logo (carpeta src/trabajo/res).
     flavorDimensions += "marca"
     productFlavors {
         create("pachi") {
@@ -49,6 +49,6 @@ android {
 }
 
 dependencies {
-    // Para los cÃ³digos QR de la vitrina de Solari
+    // Para los códigos QR de la vitrina de Solari
     implementation("com.google.zxing:core:3.5.3")
 }

@@ -110,3 +110,4 @@ CERRADAS  apps abiertas (prueba de "Cerrar apps abiertas"): memoria 485 → 679 
 INSTALADA com.pachi.tv 1.25 (nombre Ziota, logo nuevo) en Fire Stick 192.168.100.77 y Chromecast 192.168.100.2 -> Success
 NOTA      el paquete sigue siendo com.pachi.tv: se conservan Home, botones remapeados y ajustes
 VERIFICADO Inicio desde Spotify abre Ziota; logo arriba a la derecha centrado con hora/fecha/clima
+INSTALADA com.pachi.tv 1.26 (Ziota: hora y clima arriba a la izquierda; acentos de la pantalla principal arreglados) en Fire Stick y Chromecast -> Success

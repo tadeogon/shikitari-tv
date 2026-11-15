@@ -17,7 +17,7 @@ android {
 
     buildTypes {
         release {
-            // Sin achicar: la librerÃ­a de Claude usa reflexiÃ³n (Jackson) y se romperÃ­a.
+            // Sin achicar: la librería de Claude usa reflexión (Jackson) y se rompería.
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -65,7 +65,7 @@ val copiarSolari by tasks.registering(Copy::class) {
 tasks.named("preBuild") { dependsOn(copiarLauncher, copiarPachi, copiarSolari) }
 
 dependencies {
-    // ConexiÃ³n ADB inalÃ¡mbrica con la TV (emparejar con cÃ³digo, conectar, ejecutar comandos)
+    // Conexión ADB inalámbrica con la TV (emparejar con código, conectar, ejecutar comandos)
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
     implementation("org.conscrypt:conscrypt-android:2.5.3")
     // Certificado propio para emparejar con la TV

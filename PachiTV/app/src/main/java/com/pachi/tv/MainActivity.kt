@@ -47,20 +47,20 @@ import java.util.WeakHashMap
 
 /**
  * Launcher para Android TV con estilo Apple TV: logo grande de la app enfocada, filas limpias
- * y un menÃº lateral flotante que se abre con AtrÃ¡s o yendo a la izquierda. Se navega con el D-pad.
- * OK abre; mantener OK abre un menÃº de opciones. Las animaciones van a mano para no depender del sistema.
+ * y un menú lateral flotante que se abre con Atrás o yendo a la izquierda. Se navega con el D-pad.
+ * OK abre; mantener OK abre un menú de opciones. Las animaciones van a mano para no depender del sistema.
  */
 class MainActivity : Activity() {
 
     private enum class Categoria(val titulo: String, val icono: Int) {
         STREAMING("Streaming", R.drawable.ic_streaming),
         PELIS("Pelis y series", R.drawable.ic_pelis),
-        MUSICA("MÃºsica", R.drawable.ic_musica),
+        MUSICA("Música", R.drawable.ic_musica),
         JUEGOS("Juegos", R.drawable.ic_juegos),
-        HERRAMIENTAS("Herramientas y mÃ¡s", R.drawable.ic_herramientas),
+        HERRAMIENTAS("Herramientas y más", R.drawable.ic_herramientas),
     }
 
-    /** PÃ¡ginas del menÃº lateral. Las que tienen categorÃ­a muestran solo esa categorÃ­a. */
+    /** Páginas del menú lateral. Las que tienen categoría muestran solo esa categoría. */
     private enum class Pagina(val titulo: String, val icono: Int, val categoria: Categoria?) {
         BUSCAR("Buscar", R.drawable.ic_buscar, null),
         INICIO("Inicio", R.drawable.ic_inicio, null),
@@ -82,7 +82,7 @@ class MainActivity : Activity() {
 
     private class ItemLateral(val vista: LinearLayout, val pagina: Pagina?, val texto: TextView, val icono: ImageView)
 
-    // Favoritas iniciales (solo las que estÃ©n instaladas), la primera vez que se abre.
+    // Favoritas iniciales (solo las que estén instaladas), la primera vez que se abre.
     private val favoritasIniciales = listOf(
         "com.google.android.youtube.tv",
         "com.netflix.ninja",
@@ -160,7 +160,7 @@ class MainActivity : Activity() {
         "com.google.android.youtube.tvmusic" to R.drawable.hero_ytmusic,
     )
 
-    // Apps con banner poco prolijo: se muestran con una tarjeta pareja de Ã­cono y nombre.
+    // Apps con banner poco prolijo: se muestran con una tarjeta pareja de ícono y nombre.
     private val tarjetaSimple = setOf(
         "com.android.tv.settings",
         "ar.wolpuente",
@@ -183,7 +183,7 @@ class MainActivity : Activity() {
     private val espera = Handler(Looper.getMainLooper())
     private val medium by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
 
-    // VersiÃ³n formal (Solari): todo el texto con la tipografÃ­a de la marca.
+    // Versión formal (Solari): todo el texto con la tipografía de la marca.
     private val formal by lazy { resources.getBoolean(R.bool.marca_formal) }
     private val vitrina by lazy { if (formal) Vitrina(this) else null }
 
@@ -192,7 +192,7 @@ class MainActivity : Activity() {
     private var relojIzquierda: LinearLayout? = null
     private fun vitrinaActiva() = vitrina != null && pagina == Pagina.INICIO && enVitrina
 
-    /** AdÃ³nde va el foco por defecto: la vitrina si estÃ¡ a la vista, si no la primera app. */
+    /** Adónde va el foco por defecto: la vitrina si está a la vista, si no la primera app. */
     private fun focoInicial(): View? = if (vitrinaActiva()) vitrina else buscarPrimera(contenido)
 
     private fun entrarVitrina() {
@@ -213,7 +213,7 @@ class MainActivity : Activity() {
     private fun fuenteDeMarca(archivo: String): Typeface? =
         try { Typeface.createFromAsset(assets, "fuentes/$archivo") } catch (e: Exception) { null }
 
-    /** Recorre la pantalla y le pone la tipografÃ­a de la marca a cada texto que todavÃ­a no la tiene. */
+    /** Recorre la pantalla y le pone la tipografía de la marca a cada texto que todavía no la tiene. */
     private fun aplicarFuente(v: View) {
         if (!formal) return
         if (v is TextView) {
@@ -260,7 +260,7 @@ class MainActivity : Activity() {
     private var busqueda = ""
     private var resultados: LinearLayout? = null
 
-    /** Tarjeta que se estÃ¡ moviendo: fila (FAV o nombre de categorÃ­a) y paquete. */
+    /** Tarjeta que se está moviendo: fila (FAV o nombre de categoría) y paquete. */
     private var moviendo: Pair<String, String>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -297,14 +297,14 @@ class MainActivity : Activity() {
     override fun onPause() {
         espera.removeCallbacksAndMessages(null)
         isla.detener()
-        vitrina?.pararVideo() // que el video no siga corriendo detrÃ¡s de otra app
+        vitrina?.pararVideo() // que el video no siga corriendo detrás de otra app
         super.onPause()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val mov = moviendo
         if (mov != null) {
-            // Modo mover: las flechas cambian el lugar; OK o AtrÃ¡s terminan.
+            // Modo mover: las flechas cambian el lugar; OK o Atrás terminan.
             if (event.action == KeyEvent.ACTION_DOWN) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> mover(mov.first, mov.second, -1)
@@ -323,14 +323,14 @@ class MainActivity : Activity() {
                 val fila = (if (currentFocus in botonesArriba) botonesArriba else botonesRapidos).filter { it.visibility == View.VISIBLE }
                 val i = fila.indexOf(currentFocus)
                 when {
-                    // En las filas de botones las flechas se mueven; pasando el Ãºltimo, se cierra.
+                    // En las filas de botones las flechas se mueven; pasando el último, se cierra.
                     i >= 0 && derecha && i < fila.lastIndex -> fila[i + 1].requestFocus()
                     i >= 0 && !derecha -> fila.getOrNull(i - 1)?.requestFocus()
                     derecha -> cerrarPanel()
                 }
                 return true
             }
-            // Solari: en la vitrina, abajo muestra las apps, derecha pasa de propiedad, izquierda abre el menÃº.
+            // Solari: en la vitrina, abajo muestra las apps, derecha pasa de propiedad, izquierda abre el menú.
             val v = vitrina
             if (v != null && !panelAbierto && currentFocus === v) {
                 when (event.keyCode) {
@@ -351,7 +351,7 @@ class MainActivity : Activity() {
                     return true
                 }
             }
-            // Desde la primera tarjeta de una fila, ir a la izquierda abre el menÃº lateral.
+            // Desde la primera tarjeta de una fila, ir a la izquierda abre el menú lateral.
             if (!panelAbierto && event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT && esPrimeraDeFila(currentFocus)) {
                 abrirPanel()
                 return true
@@ -398,7 +398,7 @@ class MainActivity : Activity() {
 
     // ---------- Movimiento ----------
 
-    /** Anima por cuadros con la curva dada; una animaciÃ³n nueva sobre la misma vista reemplaza a la anterior. */
+    /** Anima por cuadros con la curva dada; una animación nueva sobre la misma vista reemplaza a la anterior. */
     private fun animar(v: View, ms: Int, curva: (Float) -> Float = ::salidaSuave, cuadro: (Float) -> Unit) {
         val token = Any()
         animaciones[v] = token
@@ -416,7 +416,7 @@ class MainActivity : Activity() {
 
     private fun salidaSuave(t: Float) = 1 - (1 - t) * (1 - t) * (1 - t)
 
-    /** Se pasa apenas del destino y vuelve: el pequeÃ±o rebote de las tarjetas de Apple TV. */
+    /** Se pasa apenas del destino y vuelve: el pequeño rebote de las tarjetas de Apple TV. */
     private fun rebote(t: Float): Float {
         val s = 1.1f
         val u = t - 1
@@ -447,7 +447,7 @@ class MainActivity : Activity() {
 
     private fun armarPantalla(): View {
         val raiz = FrameLayout(this).apply { setBackgroundColor(0xFF0B0B0F.toInt()) }
-        // Todo lo que queda atrÃ¡s del menÃº lateral va junto, para poder difuminarlo cuando se abre.
+        // Todo lo que queda atrás del menú lateral va junto, para poder difuminarlo cuando se abre.
         capa = FrameLayout(this)
         raiz.addView(capa, llenar())
         fondo = FondoConsola(this)
@@ -488,7 +488,7 @@ class MainActivity : Activity() {
             })
         }
 
-        // Marquita al borde: avisa que a la izquierda hay un menÃº.
+        // Marquita al borde: avisa que a la izquierda hay un menú.
         capa.addView(View(this).apply {
             background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, ARCOIRIS).apply {
                 cornerRadius = dp(3).toFloat()
@@ -517,7 +517,7 @@ class MainActivity : Activity() {
         return raiz
     }
 
-    /** Arriba a la derecha: hora, fecha, tiempo y el logo chico. */
+    /** Arriba a la derecha queda solo el logo; la hora, la fecha y el clima van arriba a la izquierda (relojIzquierda). */
     private fun armarInfo(): View {
         val textos = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -546,9 +546,9 @@ class MainActivity : Activity() {
             setTextColor(0x99FFFFFF.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
         }
-        if (formal) {
-            // Solari: hora y clima juntos arriba a la izquierda (la fecha chiquita abajo del clima),
-            // asÃ­ a la derecha queda solo el logo y la vitrina sube y gana lugar.
+        run {
+            // Hora y clima juntos arriba a la izquierda (la fecha chiquita abajo del clima),
+            // así a la derecha queda solo el logo y la vitrina sube y gana lugar.
             val clima = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(climaAhora.apply { setPadding(0, 0, 0, 0); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) })
@@ -556,7 +556,7 @@ class MainActivity : Activity() {
                     orientation = LinearLayout.HORIZONTAL
                     addView(fecha.apply { setTextColor(0x99FFFFFF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f) })
                     addView(TextView(this@MainActivity).apply {
-                        text = "  Â·  "
+                        text = "  ·  "
                         setTextColor(0x99FFFFFF.toInt())
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                     })
@@ -571,19 +571,11 @@ class MainActivity : Activity() {
                     LinearLayout.LayoutParams(dp(1), dp(26)).apply { marginStart = dp(14); marginEnd = dp(14) })
                 addView(clima)
             }
-        } else {
-            textos.addView(hora)
-            textos.addView(fecha)
-            textos.addView(climaAhora)
-            textos.addView(climaDetalle)
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             // El logo queda centrado a la altura del bloque de hora, fecha y clima.
             gravity = Gravity.CENTER_VERTICAL
-            if (!formal) addView(textos, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                marginEnd = dp(14)
-            })
             addView(ImageView(this@MainActivity).apply {
                 setImageResource(R.drawable.logo_chico)
                 contentDescription = getString(R.string.app_name)
@@ -628,14 +620,14 @@ class MainActivity : Activity() {
         return fila
     }
 
-    // ---------- MenÃº lateral ----------
+    // ---------- Menú lateral ----------
 
     private fun armarPanel(): LinearLayout {
         val caja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(10), dp(6), dp(8))
             background = GradientDrawable().apply {
-                // Vidrio al estilo iOS: bien transparente donde el sistema puede difuminar lo de atrÃ¡s.
+                // Vidrio al estilo iOS: bien transparente donde el sistema puede difuminar lo de atrás.
                 setColor(if (hayDifuminado) 0x8C3A3A40.toInt() else 0xF52C2C2E.toInt())
                 cornerRadius = dp(20).toFloat()
                 setStroke(1, 0x33FFFFFF)
@@ -654,7 +646,7 @@ class MainActivity : Activity() {
             adjustViewBounds = true
         }, LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT))
         perfil.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        // MÃºsica: la nota abre Spotify; los otros tres aparecen cuando hay algo sonando.
+        // Música: la nota abre Spotify; los otros tres aparecen cuando hay algo sonando.
         botonesMusica.clear()
         botonesMusica += botonRapido(R.drawable.ic_anterior, "Anterior", { isla.temaAnterior() }, null, botonesArriba, 26)
         val pausa = botonRapido(R.drawable.ic_pause, "Pausa", {
@@ -668,7 +660,7 @@ class MainActivity : Activity() {
         perfil.addView(botonRapido(R.drawable.ic_musica, "Spotify", { abrirSpotify() }, null, botonesArriba, 26))
         caja.addView(perfil)
 
-        // Lo que estÃ¡ sonando: carÃ¡tula, tema y artista, igual que en la isla.
+        // Lo que está sonando: carátula, tema y artista, igual que en la isla.
         tapaMenu = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
             outlineProvider = bordesRedondos(dp(8).toFloat())
@@ -727,7 +719,7 @@ class MainActivity : Activity() {
         return caja
     }
 
-    /** BotÃ³n redondo como los del centro de control de iOS; el nombre aparece abajo al enfocarlo. */
+    /** Botón redondo como los del centro de control de iOS; el nombre aparece abajo al enfocarlo. */
     private fun pintarMusicaMenu() {
         val visible = if (isla.hayMusica) View.VISIBLE else View.GONE
         botonesMusica.forEach { it.visibility = visible }
@@ -741,7 +733,7 @@ class MainActivity : Activity() {
 
     private fun abrirSpotify() {
         if (packageManager.getLeanbackLaunchIntentForPackage(SPOTIFY) == null && packageManager.getLaunchIntentForPackage(SPOTIFY) == null) {
-            Toast.makeText(this, "Spotify no estÃ¡ instalado en esta TV", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Spotify no está instalado en esta TV", Toast.LENGTH_LONG).show()
             return
         }
         abrir(SPOTIFY)
@@ -783,8 +775,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Fire TV: los atajos comunes de Android no existen ahÃ­ o pasan por el inicio de Amazon (y Pachi lo tapa).
-     * Estos son los de Amazon que sÃ­ abren directo.
+     * Fire TV: los atajos comunes de Android no existen ahí o pasan por el inicio de Amazon (y Pachi lo tapa).
+     * Estos son los de Amazon que sí abren directo.
      */
     private val esFireTv = Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
     private fun ajustesFire() = Intent().setClassName("com.amazon.tv.launcher", "com.amazon.tv.launcher.ui.MainSettingsActivity")
@@ -800,7 +792,7 @@ class MainActivity : Activity() {
         if (esFireTv) {
             // En Fire TV la pantalla de audio solo la puede abrir Amazon. El sonido se manda a un parlante o
             // auriculares desde la lista de Bluetooth; sin nada conectado, sale por la TV.
-            Toast.makeText(this, "ElegÃ­ el parlante o los auriculares Bluetooth. Sin ninguno, el sonido sale por la TV.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Elegí el parlante o los auriculares Bluetooth. Sin ninguno, el sonido sale por la TV.", Toast.LENGTH_LONG).show()
             abrirPrimera(bluetoothFire(), ajustesFire())
             return
         }
@@ -811,7 +803,7 @@ class MainActivity : Activity() {
         )
     }
 
-    /** Algunas TV no tienen pantalla de Bluetooth propia: ahÃ­ se va a la de vincular dispositivos. */
+    /** Algunas TV no tienen pantalla de Bluetooth propia: ahí se va a la de vincular dispositivos. */
     private fun abrirBluetooth() {
         val permiso = android.Manifest.permission.BLUETOOTH_CONNECT
         if (hayDifuminado && checkSelfPermission(permiso) != PackageManager.PERMISSION_GRANTED) {
@@ -850,7 +842,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** LÃ­nea fina entre grupos, como en los menÃºs de iOS. */
+    /** Línea fina entre grupos, como en los menús de iOS. */
     private fun separador() = View(this).apply {
         setBackgroundColor(0x26FFFFFF)
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1).apply {
@@ -880,14 +872,14 @@ class MainActivity : Activity() {
         }
         val item = ItemLateral(vista, destino, texto, imagen)
         itemsLaterales.add(item)
-        // Sin agrandar: la selecciÃ³n queda siempre adentro del panel.
+        // Sin agrandar: la selección queda siempre adentro del panel.
         vista.setOnFocusChangeListener { _, _ -> pintarItem(item) }
         vista.setOnClickListener { click() }
         if (mantener != null) vista.setOnLongClickListener { mantener(); true }
         return vista
     }
 
-    /** Enfocado: fila blanca con letra oscura. PÃ¡gina actual: fila apenas marcada. */
+    /** Enfocado: fila blanca con letra oscura. Página actual: fila apenas marcada. */
     private fun pintarItem(item: ItemLateral) {
         val foco = item.vista.isFocused
         val actual = item.pagina == pagina
@@ -907,7 +899,7 @@ class MainActivity : Activity() {
         isla.permitirFoco(false)
         pintarMusicaMenu()
         if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(12).toFloat(), dp(12).toFloat(), Shader.TileMode.CLAMP))
-        // Mientras estÃ¡ abierto, el foco no puede escaparse a las tarjetas de atrÃ¡s.
+        // Mientras está abierto, el foco no puede escaparse a las tarjetas de atrás.
         contenido.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         itemsLaterales.forEach { pintarItem(it) }
         velo.visibility = View.VISIBLE
@@ -960,7 +952,7 @@ class MainActivity : Activity() {
     private fun cargarApps() {
         val pm = packageManager
         val encontradas = LinkedHashMap<String, App>()
-        // Primero las apps hechas para TV (con banner); despuÃ©s las comunes que falten.
+        // Primero las apps hechas para TV (con banner); después las comunes que falten.
         for (categoria in listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)) {
             val intent = Intent(Intent.ACTION_MAIN).addCategory(categoria)
             for (ri in pm.queryIntentActivities(intent, 0)) {
@@ -1010,7 +1002,7 @@ class MainActivity : Activity() {
         return leerLista(FAV).mapNotNull { porPkg[it] }
     }
 
-    /** Apps de una categorÃ­a en el orden que eligiÃ³ el usuario; las nuevas van al final por nombre. */
+    /** Apps de una categoría en el orden que eligió el usuario; las nuevas van al final por nombre. */
     private fun appsDe(cat: Categoria): List<App> {
         val lista = visibles().filter { categoriaDe(it) == cat }
         val orden = leerLista(cat.name)
@@ -1066,12 +1058,12 @@ class MainActivity : Activity() {
                 if (escondidas.isNotEmpty()) agregarFila("Ocultas", escondidas, OCULTAS, contenido)
             }
             else -> {
-                // Una categorÃ­a sola: grilla, para ver todas sus apps de un vistazo.
+                // Una categoría sola: grilla, para ver todas sus apps de un vistazo.
                 val cat = p.categoria!!
                 val lista = appsDe(cat)
                 if (lista.isEmpty()) {
                     nombreApp.text = cat.titulo
-                    subtitulo.text = "TodavÃ­a no hay apps acÃ¡"
+                    subtitulo.text = "Todavía no hay apps acá"
                 }
                 lista.chunked(columnas).forEachIndexed { i, parte ->
                     agregarFila(if (i == 0) cat.titulo else null, parte, cat.name, contenido)
@@ -1088,7 +1080,7 @@ class MainActivity : Activity() {
 
     private fun armarBusqueda() {
         nombreApp.text = "Buscar"
-        subtitulo.text = "EscribÃ­ el nombre de una app"
+        subtitulo.text = "Escribí el nombre de una app"
         val campo = EditText(this).apply {
             setText(busqueda)
             hint = "Nombre de la app"
@@ -1249,7 +1241,7 @@ class MainActivity : Activity() {
             tarjeta.scaleX = 1.14f
             tarjeta.scaleY = 1.14f
             nombre.alpha = 1f
-            nombre.text = "â€¹  ${app.label}  â€º"
+            nombre.text = "‹  ${app.label}  ›"
         }
         tarjeta.setOnFocusChangeListener { _, foco ->
             escalar(tarjeta, if (foco) 1.1f else 1f, if (foco) dp(18).toFloat() else 0f)
@@ -1258,7 +1250,7 @@ class MainActivity : Activity() {
             animar(nombre, 200) { c -> nombre.alpha = alfa0 + (destino - alfa0) * c }
             if (foco) {
                 ultimaTarjeta = "$contenedor|${app.pkg}"
-                // Espera un instante: al pasar rÃ¡pido por la fila no se dibuja cada logo.
+                // Espera un instante: al pasar rápido por la fila no se dibuja cada logo.
                 espera.removeCallbacksAndMessages(null)
                 espera.postDelayed({ verDestacada(app, titulo ?: pagina.titulo) }, 130)
             }
@@ -1273,7 +1265,7 @@ class MainActivity : Activity() {
     private var imagenDeFondo: Drawable? = null
     private var colorDeFondo = 0
 
-    /** La franja de arriba toma el color de la carÃ¡tula mientras suena mÃºsica; si no, el de la app enfocada. */
+    /** La franja de arriba toma el color de la carátula mientras suena música; si no, el de la app enfocada. */
     private fun pintarFondo() {
         val tapa = isla.tapaActual
         val imagen = if (isla.sonando && tapa != null) android.graphics.drawable.BitmapDrawable(resources, tapa) else imagenDeFondo
@@ -1308,8 +1300,8 @@ class MainActivity : Activity() {
         } else {
             medidas.width = dp(ALTO_CABECERA) * 16 / 9
             medidas.height = dp(ALTO_CABECERA)
-            // Copia propia: si la cabecera y la tarjeta comparten el mismo dibujo, se pelean por el tamaÃ±o y los
-            // Ã­conos adaptables rehacen su mÃ¡scara una y otra vez hasta llenar la memoria (pasÃ³ en el Fire Stick).
+            // Copia propia: si la cabecera y la tarjeta comparten el mismo dibujo, se pelean por el tamaño y los
+            // íconos adaptables rehacen su máscara una y otra vez hasta llenar la memoria (pasó en el Fire Stick).
             val grande = try {
                 imagenGrande(app)
             } catch (e: OutOfMemoryError) {
@@ -1334,7 +1326,7 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Color de fondo sacado del tono mÃ¡s vivo del logo, no del promedio: asÃ­ YouTube da rojo oscuro y no gris.
+     * Color de fondo sacado del tono más vivo del logo, no del promedio: así YouTube da rojo oscuro y no gris.
      * Un logo sin color (blanco, gris o negro) deja el fondo casi negro.
      */
     private fun colorDeMarca(d: Drawable): Int {
@@ -1357,10 +1349,10 @@ class MainActivity : Activity() {
         return Color.HSVToColor(floatArrayOf(tonos[mejor] / pesos[mejor], 0.85f, 0.28f))
     }
 
-    /** Pide a la app la versiÃ³n mÃ¡s grande de su banner; null si no trae una mejor que la que ya se ve. */
+    /** Pide a la app la versión más grande de su banner; null si no trae una mejor que la que ya se ve. */
     private fun copiaDe(d: Drawable): Drawable = d.constantState?.newDrawable(resources)?.mutate() ?: d
 
-    /** Equipos con poca memoria (Fire Stick, TVs baratas): ahÃ­ no se cargan las versiones en alta resoluciÃ³n. */
+    /** Equipos con poca memoria (Fire Stick, TVs baratas): ahí no se cargan las versiones en alta resolución. */
     private val pocaMemoria by lazy {
         val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
         val info = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
@@ -1389,7 +1381,7 @@ class MainActivity : Activity() {
 
     private fun aBitmap(d: Drawable, ancho: Int, alto: Int): Bitmap {
         val bmp = Bitmap.createBitmap(ancho, alto, Bitmap.Config.ARGB_8888)
-        // Copia del drawable: cambiarle el tamaÃ±o al original romperÃ­a la tarjeta que lo estÃ¡ mostrando.
+        // Copia del drawable: cambiarle el tamaño al original rompería la tarjeta que lo está mostrando.
         val copia = d.constantState?.newDrawable(resources)?.mutate() ?: d
         copia.setBounds(0, 0, ancho, alto)
         copia.draw(Canvas(bmp))
@@ -1404,7 +1396,7 @@ class MainActivity : Activity() {
         return info.availMem / (1024 * 1024)
     }
 
-    /** Cierra lo que otras apps tienen en segundo plano; Android no deja tocar lo que estÃ¡ en uso. */
+    /** Cierra lo que otras apps tienen en segundo plano; Android no deja tocar lo que está en uso. */
     private fun optimizar() {
         val antes = memoriaLibreMb()
         val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
@@ -1413,7 +1405,7 @@ class MainActivity : Activity() {
         }
         contenido.postDelayed({
             val ganados = (memoriaLibreMb() - antes).coerceAtLeast(0)
-            Toast.makeText(this, "Memoria liberada: $ganados MB Â· ${memoriaLibreMb()} MB libres", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Memoria liberada: $ganados MB · ${memoriaLibreMb()} MB libres", Toast.LENGTH_LONG).show()
         }, 1500)
     }
 
@@ -1427,7 +1419,7 @@ class MainActivity : Activity() {
 
     private fun nombreAnimacion() = when {
         escalaAnimacion() == 0f -> "sin animaciones"
-        escalaAnimacion() < 1f -> "rÃ¡pidas"
+        escalaAnimacion() < 1f -> "rápidas"
         else -> "normales"
     }
 
@@ -1440,7 +1432,7 @@ class MainActivity : Activity() {
         mostrarDialogo("Optimizar", null, listOf(
             "Optimizar ahora (${memoriaLibreMb()} MB libres)" to { optimizar() },
             "Animaciones del sistema: ${nombreAnimacion()}" to {
-                // Normales â†’ RÃ¡pidas â†’ Sin animaciones â†’ Normales
+                // Normales → Rápidas → Sin animaciones → Normales
                 val siguiente = when {
                     escalaAnimacion() >= 1f -> 0.5f
                     escalaAnimacion() > 0f -> 0f
@@ -1465,7 +1457,7 @@ class MainActivity : Activity() {
     private fun servicioInicioActivo() =
         Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)?.contains(servicioInicio) == true
 
-    /** Si el servicio del botÃ³n Inicio se apagÃ³ solo, lo vuelve a prender (solo si se habÃ­a activado y hay permiso). */
+    /** Si el servicio del botón Inicio se apagó solo, lo vuelve a prender (solo si se había activado y hay permiso). */
     private fun asegurarServicioInicio() {
         if (tienePermisoAjustes() && prefs.getBoolean("boton_inicio", false) && !servicioInicioActivo()) cambiarServicioInicio(true)
     }
@@ -1503,12 +1495,12 @@ class MainActivity : Activity() {
 
     private fun menuAjustes() {
         val version = packageManager.getPackageInfo(packageName, 0).versionName
-        mostrarDialogo("Ajustes Â· ${getString(R.string.app_name)} $version", null, listOf(
+        mostrarDialogo("Ajustes · ${getString(R.string.app_name)} $version", null, listOf(
             "Tarjetas: " + (if (prefs.getBoolean("grandes", false)) "grandes (4 por fila)" else "normales (5 por fila)") to {
                 prefs.edit().putBoolean("grandes", !prefs.getBoolean("grandes", false)).commit()
                 refrescar()
             },
-            "Abrir ${getString(R.string.app_name)} con Inicio: " + (if (servicioInicioActivo()) "sÃ­" else "no") to {
+            "Abrir ${getString(R.string.app_name)} con Inicio: " + (if (servicioInicioActivo()) "sí" else "no") to {
                 if (tienePermisoAjustes()) {
                     val activar = !servicioInicioActivo()
                     prefs.edit().putBoolean("boton_inicio", activar).apply()
@@ -1517,7 +1509,7 @@ class MainActivity : Activity() {
                     abrirIntent(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
             },
-            "Protector de pantalla: " + (if (protectorActivo()) "sÃ­" else "no") to {
+            "Protector de pantalla: " + (if (protectorActivo()) "sí" else "no") to {
                 conPermiso { cambiarProtector(!protectorActivo()) }
             },
             "Ver el protector ahora" to { startActivity(Intent(this, ProtectorActivity::class.java)) },
@@ -1525,7 +1517,7 @@ class MainActivity : Activity() {
                 guardarLista("ocultas", emptyList())
                 refrescar()
             },
-            "Restablecer orden y categorÃ­as" to {
+            "Restablecer orden y categorías" to {
                 val editor = prefs.edit()
                 for (clave in prefs.all.keys) {
                     if (clave.startsWith("cat_") || Categoria.values().any { it.name == clave }) editor.remove(clave)
@@ -1537,13 +1529,13 @@ class MainActivity : Activity() {
         ))
     }
 
-    /** Redibuja las filas sin sacar el foco del menÃº lateral si estÃ¡ abierto. */
+    /** Redibuja las filas sin sacar el foco del menú lateral si está abierto. */
     private fun refrescar() {
         ultimaTarjeta = null
         mostrar(arriba = true)
     }
 
-    // ---------- MenÃº al mantener OK ----------
+    // ---------- Menú al mantener OK ----------
 
     private fun menuApp(app: App, contenedor: String) {
         val oculta = app.pkg in ocultas()
@@ -1554,7 +1546,7 @@ class MainActivity : Activity() {
         } else {
             opciones += (if (app.pkg in leerLista(FAV)) "Quitar de favoritas" else "Agregar a favoritas") to { alternarFavorita(app, contenedor) }
             if (contenedor != BUSQUEDA && contenedor != RECIENTES) opciones += "Mover" to { empezarAMover(app, contenedor) }
-            opciones += "Cambiar categorÃ­a" to { elegirCategoria(app) }
+            opciones += "Cambiar categoría" to { elegirCategoria(app) }
             opciones += "Ocultar" to { ocultar(app, true) }
         }
         opciones += "Cerrar en segundo plano" to {
@@ -1562,7 +1554,7 @@ class MainActivity : Activity() {
             Toast.makeText(this, "${app.label} cerrada", Toast.LENGTH_SHORT).show()
         }
         opciones += "Optimizar" to { menuOptimizar() }
-        opciones += "InformaciÃ³n de la app" to {
+        opciones += "Información de la app" to {
             abrirIntent(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")))
         }
         if (!app.sistema) {
@@ -1573,8 +1565,8 @@ class MainActivity : Activity() {
 
     private fun elegirCategoria(app: App) {
         val actual = categoriaDe(app)
-        mostrarDialogo("CategorÃ­a de ${app.label}", app.icono, Categoria.values().map { cat ->
-            (if (cat == actual) "âœ“  ${cat.titulo}" else "     ${cat.titulo}") to {
+        mostrarDialogo("Categoría de ${app.label}", app.icono, Categoria.values().map { cat ->
+            (if (cat == actual) "✓  ${cat.titulo}" else "     ${cat.titulo}") to {
                 prefs.edit().putString("cat_${app.pkg}", cat.name).apply()
                 mostrar(foco = "${cat.name}|${app.pkg}")
             }
@@ -1583,23 +1575,23 @@ class MainActivity : Activity() {
 
     private var dialogosAbiertos = 0
 
-    /** Ãcono de cada opciÃ³n, segÃºn lo que dice. */
+    /** Ícono de cada opción, según lo que dice. */
     private fun iconoDeOpcion(texto: String): Int? = when {
         texto == "Abrir" -> R.drawable.ic_play
         texto.contains("favoritas") -> R.drawable.ic_estrella
         texto == "Mover" -> R.drawable.ic_mover
-        texto.contains("categorÃ­a") -> R.drawable.ic_apps
+        texto.contains("categoría") -> R.drawable.ic_apps
         texto == "Ocultar" || texto == "Mostrar" -> R.drawable.ic_ocultar
         texto.startsWith("Cerrar") -> R.drawable.ic_cerrar
         texto.startsWith("Optimizar") -> R.drawable.ic_rayo
-        texto.startsWith("InformaciÃ³n") -> R.drawable.ic_info
+        texto.startsWith("Información") -> R.drawable.ic_info
         texto == "Desinstalar" -> R.drawable.ic_borrar
         texto.startsWith("Almacenamiento") -> R.drawable.ic_herramientas
         texto.startsWith("Ajustes") -> R.drawable.ic_config
         else -> null
     }
 
-    /** MenÃº con el mismo vidrio del menÃº lateral: fondo difuminado, Ã­conos y fila crema al enfocar. */
+    /** Menú con el mismo vidrio del menú lateral: fondo difuminado, íconos y fila crema al enfocar. */
     private fun mostrarDialogo(titulo: String, icono: Drawable?, opciones: List<Pair<String, () -> Unit>>) {
         val dialogo = Dialog(this)
         val caja = LinearLayout(this).apply {
@@ -1682,7 +1674,7 @@ class MainActivity : Activity() {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setDimAmount(0.25f)
         }
-        // Un menÃº puede abrir otro: el difuminado se saca reciÃ©n cuando se cerrÃ³ el Ãºltimo.
+        // Un menú puede abrir otro: el difuminado se saca recién cuando se cerró el último.
         dialogosAbiertos++
         if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(12).toFloat(), dp(12).toFloat(), Shader.TileMode.CLAMP))
         dialogo.setOnDismissListener {
@@ -1725,7 +1717,7 @@ class MainActivity : Activity() {
         }
         guardarLista(FAV, favs)
         Toast.makeText(this, mensaje, Toast.LENGTH_SHORT).show()
-        // Si se quitÃ³ desde la fila de favoritas, el foco queda en la misma app en su categorÃ­a.
+        // Si se quitó desde la fila de favoritas, el foco queda en la misma app en su categoría.
         val nuevo = if (contenedor == FAV) categoriaDe(app).name else contenedor
         mostrar(foco = "$nuevo|${app.pkg}")
     }
@@ -1734,7 +1726,7 @@ class MainActivity : Activity() {
         val lista = leerLista("ocultas")
         if (ocultar) lista.add(app.pkg) else lista.remove(app.pkg)
         guardarLista("ocultas", lista.distinct())
-        Toast.makeText(this, if (ocultar) "${app.label} oculta. La encontrÃ¡s en Inicio, al final." else "${app.label} vuelve a mostrarse", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, if (ocultar) "${app.label} oculta. La encontrás en Inicio, al final." else "${app.label} vuelve a mostrarse", Toast.LENGTH_SHORT).show()
         mostrar(foco = if (ocultar) null else "${categoriaDe(app).name}|${app.pkg}")
     }
 
