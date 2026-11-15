@@ -16,6 +16,10 @@
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         xmlns:tools="http://schemas.android.com/tools"
         tools:ignore="ProtectedPermissions" />
+    <!-- Solo en Fire TV y solo si se otorga por ADB: ver qué botón de apps del control se apretó -->
+    <uses-permission android:name="android.permission.READ_LOGS"
+        xmlns:tools="http://schemas.android.com/tools"
+        tools:ignore="ProtectedPermissions" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

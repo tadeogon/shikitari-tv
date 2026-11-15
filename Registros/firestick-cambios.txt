@@ -83,3 +83,4 @@ AJUSTE    global heads_up_notifications_enabled: 1 -> 0
 AJUSTE    global com.amazon.tv.settings.featured_item_video_enabled: null -> 0
 AJUSTE    global com.amazon.tv.settings.featured_item_video_volume: null -> 0.0
 AJUSTE    Pachi 1.18 instalada y servicio de Inicio reactivado (se había apagado por el cierre por memoria)
+AJUSTE    Pachi 1.20: permiso READ_LOGS para botones de Fire TV; botón Disney+ → YouTube

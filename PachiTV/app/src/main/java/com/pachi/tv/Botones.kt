@@ -19,6 +19,37 @@ object Botones {
 
     fun destino(contexto: Context, codigo: Int): String? = mapa(contexto)[codigo]
 
+    /**
+     * En Fire TV, Amazon se queda con los botones de apps antes de que lleguen a Pachi. Lo que sí se ve es el
+     * pedido que hace el sistema al apretarlo (queda en el registro del sistema), por ejemplo:
+     *   START u0 {act=...VIEW dat=amzns://apps/android?asin=B07Y8SJGCV&clickStreamReftag=r_btn_app_12 ...} from uid 1000
+     * Cada botón pide algo distinto; esta tabla dice qué buscar en esa línea para cada botón.
+     */
+    private val SEÑAL_FIRE = mapOf(
+        "KEYCODE_APP_1" to "com.amazon.firebat",  // Prime Video
+        "KEYCODE_APP_2" to "netflix",             // Netflix
+        "KEYCODE_APP_3" to "B07Y8SJGCV",          // Disney+
+        "KEYCODE_APP_4" to "B08BG9MPT9",          // Peacock
+    )
+
+    /** Si la línea del registro es un botón remapeado del Fire TV, devuelve la app que hay que abrir. */
+    fun destinoFire(contexto: Context, linea: String): String? {
+        if (!linea.contains("START u0") || !linea.contains("from uid 1000")) return null
+        val texto = contexto.getSharedPreferences("botones", Context.MODE_PRIVATE).getString(CLAVE, "") ?: ""
+        texto.split(';').forEach { par ->
+            val partes = par.split('=', limit = 2)
+            if (partes.size != 2) return@forEach
+            val señal = SEÑAL_FIRE[partes[0].trim()] ?: return@forEach
+            val destino = partes[1].trim()
+            // Si lo que se abre ya es la app elegida (por ejemplo, Netflix asignado a Netflix), no hay nada que hacer.
+            if (linea.contains(señal, ignoreCase = true) && !linea.contains(destino)) return destino
+        }
+        return null
+    }
+
+    fun hayAlgoRemapeado(contexto: Context) =
+        !contexto.getSharedPreferences("botones", Context.MODE_PRIVATE).getString(CLAVE, "").isNullOrBlank()
+
     private fun mapa(contexto: Context): Map<Int, String> = cache ?: run {
         val texto = contexto.getSharedPreferences("botones", Context.MODE_PRIVATE).getString(CLAVE, "") ?: ""
         leer(texto).also { cache = it }

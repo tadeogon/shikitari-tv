@@ -583,7 +583,10 @@ class MainActivity : Activity() {
             val launchers = listOf(AccionesTv.PACHI, AccionesTv.SOLARI).filter { it.paquete in instalados }
             if (launchers.isEmpty()) return@boton "Primero instalá Pachi TV o Solari en esta TV."
             val res = StringBuilder()
+            // En Fire TV, Amazon se queda con esos botones: Pachi los reconoce leyendo el registro del sistema.
+            val esFire = tv.ejecutar("getprop ro.product.manufacturer").trim().equals("Amazon", ignoreCase = true)
             launchers.forEach { m ->
+                if (esFire) tv.ejecutar("pm grant ${m.paquete} android.permission.READ_LOGS")
                 val r = tv.ejecutar("am broadcast -n ${m.paquete}/com.pachi.tv.ReceptorBotones --es mapa ${ConexionTv.comillas(texto)}")
                 val activo = tv.ejecutar("settings get secure enabled_accessibility_services").contains(m.servicioInicio)
                 res.append(if (r.contains("data=\"ok\"")) "Botones guardados en ${m.nombre} ✓" else "No se pudo guardar en ${m.nombre}: $r").append('\n')
