@@ -87,3 +87,6 @@ AJUSTE    Pachi 1.20: permiso READ_LOGS para botones de Fire TV; botón Disney+ 
 INSTALADA Apple TV 17.0.3 (copiada del Chromecast, base + split armeabi_v7a)
 AJUSTE    Botón Peacock → Apple TV (Disney+ sigue → YouTube)
 INSTALADA Pachi 1.23 (botón TV y Canal +/− remapeables)
+AJUSTE    Botón TV → ClipBox
+INSTALADA Spotify (desde la tienda de Amazon)
+AJUSTE    auto_time_zone 1 -> 0 y zona horaria GMT -> America/Argentina/Buenos_Aires
