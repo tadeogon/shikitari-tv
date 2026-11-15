@@ -73,12 +73,13 @@ object Letras {
     val frase = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Colores.texto)
     val cuerpo = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, fontWeight = FontWeight.Normal, color = Colores.texto)
     val paquete = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.5.sp, color = Colores.textoDim2)
-    val detalle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, color = Colores.textoDim2)
+    // Sobre la imagen de fondo el 34 % no se lee: los textos chicos sueltos usan el 55 %.
+    val detalle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, color = Colores.textoDim)
     val seccion = TextStyle(
         fontFamily = FontFamily.SansSerif, fontSize = 12.sp, fontWeight = FontWeight.Medium,
         letterSpacing = 0.72.sp, color = Color.White.copy(alpha = 0.42f),
     )
-    val nota = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 12.5.sp, lineHeight = 18.75.sp, color = Colores.textoDim2)
+    val nota = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 12.5.sp, lineHeight = 18.75.sp, color = Colores.textoDim)
     val tabular = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, fontFeatureSettings = "tnum", color = Colores.textoDim)
 }
 

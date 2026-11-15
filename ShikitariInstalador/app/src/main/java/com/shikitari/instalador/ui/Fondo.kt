@@ -29,9 +29,10 @@ fun FondoOptimizar(modifier: Modifier = Modifier) {
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
-                    0f to Color.Black.copy(alpha = 0.30f),
-                    0.45f to Color.Black.copy(alpha = 0.45f),
-                    1f to Color.Black.copy(alpha = 0.70f),
+                    // Arriba la imagen tiene lo más brillante y ahí van los textos chicos: velo más fuerte.
+                    0f to Color.Black.copy(alpha = 0.55f),
+                    0.35f to Color.Black.copy(alpha = 0.50f),
+                    1f to Color.Black.copy(alpha = 0.72f),
                 ),
             ),
         )
