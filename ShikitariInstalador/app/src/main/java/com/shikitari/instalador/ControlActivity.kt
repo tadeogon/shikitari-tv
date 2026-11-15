@@ -557,7 +557,7 @@ class ControlActivity : Activity() {
             "com.google.android.tv" to "Google TV",
             "com.android.tv.settings" to "Ajustes",
             "com.milauncher.tv" to "Shikitari TV",
-            "com.pachi.tv" to "Pachi TV",
+            "com.pachi.tv" to "Ziota",
             "com.pachi.tv.trabajo" to "Solari",
             "com.limelight" to "Moonlight",
             "com.mxlmovies.app" to "MXL Movies",

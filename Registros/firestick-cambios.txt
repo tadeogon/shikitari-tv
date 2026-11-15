@@ -105,3 +105,8 @@ QUITADA   com.amazon.bueller.photos -> Success
 QUITADA   com.amazon.cloud9 -> Failure [DELETE_FAILED_INTERNAL_ERROR]
 REINICIO 2: Music y Photos siguen quitadas; Kids (tahoe) y Silk (cloud9) vuelven solas en cada arranque (Amazon las restaura), se dejan; 74 apagadas; Pachi activo
 CERRADAS  apps abiertas (prueba de "Cerrar apps abiertas"): memoria 485 → 679 MB
+
+--- 15/11/2026: Pachi TV pasa a llamarse Ziota (1.25) ---
+INSTALADA com.pachi.tv 1.25 (nombre Ziota, logo nuevo) en Fire Stick 192.168.100.77 y Chromecast 192.168.100.2 -> Success
+NOTA      el paquete sigue siendo com.pachi.tv: se conservan Home, botones remapeados y ajustes
+VERIFICADO Inicio desde Spotify abre Ziota; logo arriba a la derecha centrado con hora/fecha/clima

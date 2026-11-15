@@ -142,12 +142,12 @@ class MainActivity : Activity() {
         Pantalla.INICIO -> armarInicio()
         Pantalla.AGREGAR -> armarAgregar()
         Pantalla.SHIKITARI -> armarShikitari()
-        Pantalla.PACHI -> armarModelo(AccionesTv.PACHI, "Pachi TV",
+        Pantalla.PACHI -> armarModelo(AccionesTv.PACHI, "Ziota",
             "El launcher estilo Apple TV, con isla dinámica para la música, menú de vidrio y protector con el logo. " +
                 "Se puede tener junto a Shikitari TV; el botón Inicio abre uno solo de los dos.")
         Pantalla.SOLARI -> armarModelo(AccionesTv.SOLARI, "Solari · Bienes Raíces",
             "La versión formal para las TVs del trabajo: vitrina de propiedades con el video y QR, logo y tipografía de Solari " +
-                "y protector sobrio. Se puede instalar junto a Pachi TV.")
+                "y protector sobrio. Se puede instalar junto a Ziota.")
         Pantalla.OPTIMIZAR -> armarOptimizar()
         Pantalla.CLAUDE -> armarClaude()
         Pantalla.HISTORIAL -> armarHistorial()
@@ -197,7 +197,7 @@ class MainActivity : Activity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         })
         col.addView(TextView(this).apply {
-            text = "Shikitari TV · Pachi TV · Solari"
+            text = "Shikitari TV · Ziota · Solari"
             setTextColor(tintaSuave)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
         })
@@ -243,7 +243,7 @@ class MainActivity : Activity() {
             Triple("📁", "Archivos", "Ver, borrar y pasar archivos") to { abrirConTv(ArchivosActivity::class.java) },
             Triple("📦", "Instalar APK", "Desde tu celular a la TV") to { abrirConTv(ArchivosActivity::class.java, instalar = true) },
             Triple("🐱", "Shikitari TV", "Launcher con tus gatos") to { ir(Pantalla.SHIKITARI) },
-            Triple("🍎", "Pachi TV", "Estilo Apple TV") to { ir(Pantalla.PACHI) },
+            Triple("🔻", "Ziota", "Estilo Apple TV") to { ir(Pantalla.PACHI) },
             Triple("☀️", "Solari", "Launcher del trabajo") to { ir(Pantalla.SOLARI) },
             Triple("⚡", "Optimizar", "Más rápida y liviana") to { ir(Pantalla.OPTIMIZAR) },
             Triple("🎛", "Botones", "Cambiar los del control") to { ir(Pantalla.BOTONES) },
@@ -567,7 +567,7 @@ class MainActivity : Activity() {
     private fun armarBotones(): View = pagina("Botones del control") { col ->
         val caja = tarjeta(col)
         caja.addView(nota(
-            "Elegí qué app abre cada botón de apps del control. Funciona con Pachi TV o Solari instalada y con su " +
+            "Elegí qué app abre cada botón de apps del control. Funciona con Ziota o Solari instalada y con su " +
                 "botón Inicio activado (usa el mismo servicio). Los botones que dejes \"como viene\" hacen lo de siempre.",
         ))
         val mapa = mapaBotones()
@@ -609,7 +609,7 @@ class MainActivity : Activity() {
             prefs.edit().putString(claveBotones(), texto).apply()
             val instalados = tv.ejecutar("pm list packages").lines().map { it.trim().removePrefix("package:") }.toSet()
             val launchers = listOf(AccionesTv.PACHI, AccionesTv.SOLARI).filter { it.paquete in instalados }
-            if (launchers.isEmpty()) return@boton "Primero instalá Pachi TV o Solari en esta TV."
+            if (launchers.isEmpty()) return@boton "Primero instalá Ziota o Solari en esta TV."
             val res = StringBuilder()
             // En Fire TV, Amazon se queda con esos botones: Pachi los reconoce leyendo el registro del sistema.
             val esFire = tv.ejecutar("getprop ro.product.manufacturer").trim().equals("Amazon", ignoreCase = true)

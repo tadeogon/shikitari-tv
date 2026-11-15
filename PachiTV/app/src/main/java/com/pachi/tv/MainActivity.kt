@@ -579,7 +579,8 @@ class MainActivity : Activity() {
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.TOP
+            // El logo queda centrado a la altura del bloque de hora, fecha y clima.
+            gravity = Gravity.CENTER_VERTICAL
             if (!formal) addView(textos, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 marginEnd = dp(14)
             })
@@ -587,7 +588,7 @@ class MainActivity : Activity() {
                 setImageResource(R.drawable.logo_chico)
                 contentDescription = getString(R.string.app_name)
                 adjustViewBounds = true
-            }, LinearLayout.LayoutParams(dp(92), ViewGroup.LayoutParams.WRAP_CONTENT))
+            }, LinearLayout.LayoutParams(dp(if (formal) 92 else 68), ViewGroup.LayoutParams.WRAP_CONTENT))
         }
     }
 
@@ -651,7 +652,7 @@ class MainActivity : Activity() {
             setImageResource(R.drawable.logo_chico)
             contentDescription = getString(R.string.app_name)
             adjustViewBounds = true
-        }, LinearLayout.LayoutParams(dp(60), ViewGroup.LayoutParams.WRAP_CONTENT))
+        }, LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT))
         perfil.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         // MÃºsica: la nota abre Spotify; los otros tres aparecen cuando hay algo sonando.
         botonesMusica.clear()

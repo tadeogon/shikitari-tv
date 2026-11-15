@@ -303,7 +303,7 @@ class AccionesTv(private val contexto: Context, private val tv: ConexionTv) {
         const val CARPETA_SHIKITARI = "/sdcard/Android/data/com.milauncher.tv/files"
         const val SERVICIO_INICIO = "com.milauncher.tv/com.milauncher.tv.InicioService"
         const val PROTECTOR = "com.milauncher.tv/com.milauncher.tv.ProtectorService"
-        val PACHI = Modelo("Pachi TV", "com.pachi.tv", "pachi-tv.apk")
+        val PACHI = Modelo("Ziota", "com.pachi.tv", "pachi-tv.apk")
         val SOLARI = Modelo("Solari", "com.pachi.tv.trabajo", "solari-tv.apk")
 
         /** Solo un launcher puede tener el botón Inicio a la vez. */

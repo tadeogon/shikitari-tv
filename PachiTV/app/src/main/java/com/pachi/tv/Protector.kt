@@ -6,9 +6,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.os.Bundle
 import android.os.SystemClock
 import android.service.dreams.DreamService
@@ -47,7 +47,7 @@ class LogoRebotando(context: Context) : View(context) {
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         if (w == 0 || h == 0) return
         val original = BitmapFactory.decodeResource(resources, R.drawable.logo_pachi)
-        val ancho = w / 5
+        val ancho = w / 6
         val chico = Bitmap.createScaledBitmap(original, ancho, ancho * original.height / original.width, true)
         logo = chico
         x = Random.nextFloat() * (w - chico.width)
@@ -85,9 +85,11 @@ class LogoRebotando(context: Context) : View(context) {
         postInvalidateOnAnimation()
     }
 
+    /** El logo es blanco: en cada rebote se pinta de un color nuevo, bien vivo para que se lea sobre el negro. */
     private fun cambiarColor() {
         tono = (tono + 50f + Random.nextFloat() * 80f) % 360f
-        pincel.colorFilter = ColorMatrixColorFilter(giroDeTono(tono))
+        val color = Color.HSVToColor(floatArrayOf(tono, 0.65f, 1f))
+        pincel.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
     }
 
     private fun festejar() {
@@ -119,24 +121,6 @@ class LogoRebotando(context: Context) : View(context) {
             pincelPapel.color = p.color
             canvas.drawRect(p.x, p.y, p.x + p.lado, p.y + p.lado, pincelPapel)
         }
-    }
-
-    /** Rota los colores manteniendo el brillo, así el logo sigue leyéndose bien. */
-    private fun giroDeTono(grados: Float): ColorMatrix {
-        val r = Math.toRadians(grados.toDouble())
-        val c = cos(r).toFloat()
-        val s = sin(r).toFloat()
-        val lr = 0.213f
-        val lg = 0.715f
-        val lb = 0.072f
-        return ColorMatrix(
-            floatArrayOf(
-                lr + c * (1 - lr) - s * lr, lg - c * lg - s * lg, lb - c * lb + s * (1 - lb), 0f, 0f,
-                lr - c * lr + s * 0.143f, lg + c * (1 - lg) + s * 0.14f, lb - c * lb - s * 0.283f, 0f, 0f,
-                lr - c * lr - s * (1 - lr), lg - c * lg + s * lg, lb + c * (1 - lb) + s * lb, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        )
     }
 
     private companion object {

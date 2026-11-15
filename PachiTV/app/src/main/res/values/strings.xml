@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pachi TV</string>
-    <string name="protector_nombre">Pachi TV – logo</string>
-    <string name="servicio_nombre">Pachi TV (botón Inicio)</string>
-    <string name="servicio_descripcion">Abre Pachi TV cuando apretás el botón Inicio del control. No lee lo que escribís ni el contenido de otras apps.</string>
+    <string name="app_name">Ziota</string>
+    <string name="protector_nombre">Ziota – logo</string>
+    <string name="servicio_nombre">Ziota (botón Inicio)</string>
+    <string name="servicio_descripcion">Abre Ziota cuando apretás el botón Inicio del control. No lee lo que escribís ni el contenido de otras apps.</string>
 </resources>

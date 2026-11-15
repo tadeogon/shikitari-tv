@@ -166,12 +166,12 @@ class AyudaClaude(
             - Ojo: com.google.android.apps.tv.dreamx contiene el panel de Google Home (luces de la casa); no lo quites.
             - El launcher propio del usuario es Shikitari TV (paquete com.milauncher.tv). Su servicio del botón Inicio es
               com.milauncher.tv/com.milauncher.tv.InicioService y su protector es com.milauncher.tv/com.milauncher.tv.ProtectorService.
-            - El otro launcher es Pachi TV (paquete com.pachi.tv), con servicio de Inicio com.pachi.tv/com.pachi.tv.InicioService y protector
+            - El otro launcher es Ziota, antes llamado Pachi TV (paquete com.pachi.tv), con servicio de Inicio com.pachi.tv/com.pachi.tv.InicioService y protector
               com.pachi.tv/com.pachi.tv.ProtectorService. Hay una tercera versión, Solari (paquete com.pachi.tv.trabajo), el mismo launcher con la marca del trabajo: sus componentes son com.pachi.tv.trabajo/com.pachi.tv.InicioService, .ProtectorService y .MusicaListener. Solo un launcher puede tener activo el servicio de Inicio a la vez.
-            - La isla dinámica de Pachi TV necesita el acceso a la música: "cmd notification allow_listener com.pachi.tv/com.pachi.tv.MusicaListener".
+            - La isla dinámica de Ziota necesita el acceso a la música: "cmd notification allow_listener com.pachi.tv/com.pachi.tv.MusicaListener".
               Si no aparece, comprobalo en "settings get secure enabled_notification_listeners". Solo se ve si la app de música sigue sonando
               en segundo plano: Spotify sí; YouTube Music para TV se corta al salir; SmartTube sigue si tiene "Reproducción de fondo" activada.
-            - Pachi TV también usa WRITE_SECURE_SETTINGS y BLUETOOTH_CONNECT (este último desde Android 12), otorgados con "pm grant".
+            - Ziota también usa WRITE_SECURE_SETTINGS y BLUETOOTH_CONNECT (este último desde Android 12), otorgados con "pm grant".
             - Si algo puede salir mal, avisalo antes y decí cómo se deshace.
         """.trimIndent()
     }
