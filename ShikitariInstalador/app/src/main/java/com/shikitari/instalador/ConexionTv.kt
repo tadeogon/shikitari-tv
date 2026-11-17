@@ -148,6 +148,15 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         }
     }
 
+    /**
+     * Abre un canal que queda mandando datos sin parar (por ejemplo, el video de la pantalla).
+     * Quien lo abre tiene que cerrarlo.
+     */
+    fun abrirCanal(comando: String): io.github.muntashirakon.adb.AdbStream {
+        asegurarConexion()
+        return openStream("exec:$comando")
+    }
+
     /** Instala un APK enviándolo por la conexión (igual que "adb install"). */
     fun instalarApk(apk: ByteArray): String {
         asegurarConexion()

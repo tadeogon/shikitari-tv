@@ -77,6 +77,23 @@ class EstadoControl(private val app: EstadoApp) {
     var pausa by mutableStateOf(false)
         private set
 
+    // Video en vivo: si la TV no puede, se vuelve a las fotos (una por segundo).
+    var videoFallo by mutableStateOf(false)
+    var enVivo by mutableStateOf(false)
+        private set
+
+    fun alVideo(e: VideoTv.Estado) {
+        when (e) {
+            VideoTv.Estado.CONECTANDO -> enVivo = false
+            VideoTv.Estado.EN_VIVO -> enVivo = true
+            VideoTv.Estado.FALLO -> {
+                enVivo = false
+                videoFallo = true
+                Bitacora.anotar(contexto, "▸ Vista en vivo: la TV no mandó video, se usan fotos")
+            }
+        }
+    }
+
     var apps by mutableStateOf<List<Pair<String, String>>>(emptyList()) // paquete, nombre
         private set
     var estadoApps by mutableStateOf("Buscando las apps de la TV…")
@@ -147,7 +164,7 @@ class EstadoControl(private val app: EstadoApp) {
             try {
                 app.tv.ejecutar("input keyevent $codigo", segundos = 10)
                 // Que la vista muestre enseguida el cambio, sin esperar al próximo segundo.
-                app.enUi { if (!pausa) pedirCaptura() }
+                app.enUi { if (!pausa && videoFallo) pedirCaptura() }
             } catch (e: Exception) {
                 app.enUi { app.cartel.avisar(false, "No llegó a la TV: ${e.message}") }
             }
@@ -290,6 +307,45 @@ class EstadoControl(private val app: EstadoApp) {
     }
 }
 
+// ---------- Vista en vivo ----------
+
+/** Un TextureView donde VideoTv dibuja el video de la TV. Al salir de la pantalla, el video se corta solo. */
+@Composable
+private fun VistaVideo(app: EstadoApp, control: EstadoControl) {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { control.alVideo(VideoTv.Estado.CONECTANDO) }
+    }
+    androidx.compose.ui.viewinterop.AndroidView(
+        factory = { ctx ->
+            android.view.TextureView(ctx).apply {
+                surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
+                    private var video: VideoTv? = null
+                    private var superficie: android.view.Surface? = null
+
+                    override fun onSurfaceTextureAvailable(st: android.graphics.SurfaceTexture, w: Int, h: Int) {
+                        val s = android.view.Surface(st)
+                        superficie = s
+                        video = VideoTv(app.tv, s) { e -> app.enUi { control.alVideo(e) } }.also { it.empezar() }
+                    }
+
+                    override fun onSurfaceTextureSizeChanged(st: android.graphics.SurfaceTexture, w: Int, h: Int) {}
+
+                    override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
+                        video?.parar()
+                        video = null
+                        superficie?.release()
+                        superficie = null
+                        return true
+                    }
+
+                    override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
+                }
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
 // ---------- Pestaña Control ----------
 
 @Composable
@@ -300,13 +356,17 @@ fun PestanaControl(app: EstadoApp, control: EstadoControl, irA: (Ruta) -> Unit, 
     // Si la conexión se cortó, deja de pedir capturas hasta que vuelva (el aviso de arriba lo explica).
     val mirando = estadoCiclo.isAtLeast(Lifecycle.State.RESUMED) && conectada != null && !control.pausa &&
         app.enlace == EstadoApp.Enlace.BIEN
-    LaunchedEffect(mirando) {
-        while (mirando) {
+    val conVideo = !control.videoFallo
+    LaunchedEffect(mirando, conVideo) {
+        while (mirando && !conVideo) {
             control.pedirCaptura()
             delay(1000)
         }
     }
-    LaunchedEffect(conectada?.ip) { control.cargarApps() }
+    LaunchedEffect(conectada?.ip) {
+        control.videoFallo = false // con otra TV se vuelve a probar el video
+        control.cargarApps()
+    }
 
     Pagina(
         titulo = "Control",
@@ -330,8 +390,19 @@ fun PestanaControl(app: EstadoApp, control: EstadoControl, irA: (Ruta) -> Unit, 
                 .border(1.dp, Colores.linea, Formas.tarjeta),
             contentAlignment = Alignment.Center,
         ) {
-            control.imagen?.let { Image(it, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
-            control.aviso?.let {
+            if (conVideo) {
+                // key: si cambia la TV o se reconecta, el video arranca de nuevo.
+                if (mirando) androidx.compose.runtime.key(conectada.ip, conectada.puerto) { VistaVideo(app, control) }
+            } else {
+                control.imagen?.let { Image(it, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+            }
+            val texto = when {
+                control.pausa -> "Vista en pausa"
+                conVideo && !control.enVivo -> "Conectando con la pantalla…"
+                conVideo -> null
+                else -> control.aviso
+            }
+            texto?.let {
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
                     Text(it, style = Letras.detalle, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
                 }
