@@ -309,7 +309,7 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
 
     companion object {
         const val CHICA = 92
-        const val GRANDE = 340
+        const val GRANDE = 280 // más angosta: abierta no llega al clima de la derecha
         private val ESTADOS_DE_PASO = setOf(
             PlaybackState.STATE_PAUSED,
             PlaybackState.STATE_BUFFERING,

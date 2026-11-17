@@ -269,11 +269,13 @@ class MainActivity : Activity() {
         val pantalla = armarPantalla()
         setContentView(pantalla)
         if (formal) pantalla.viewTreeObserver.addOnGlobalLayoutListener { aplicarFuente(pantalla) }
+        recibirPcs(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        recibirPcs(intent)
         if (intent.getBooleanExtra(EXTRA_DESDE_HOME, false) || intent.hasCategory(Intent.CATEGORY_HOME)) {
             pagina = Pagina.INICIO
             enVitrina = true
@@ -457,7 +459,7 @@ class MainActivity : Activity() {
         val columna = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         destacado = armarDestacado()
         // Más alto que antes: el logo de la app arranca debajo de la hora y nunca la tapa.
-        columna.addView(destacado, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160)))
+        columna.addView(destacado, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(168)))
 
         contenido = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -478,15 +480,20 @@ class MainActivity : Activity() {
         columna.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         capa.addView(columna, llenar())
 
-        capa.addView(armarInfo(), FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END).apply {
+        val info = armarInfo()
+        capa.addView(info, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END).apply {
             topMargin = dp(22)
             marginEnd = dp(MARGEN)
         })
-        relojIzquierda?.let {
-            capa.addView(it, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START).apply {
-                topMargin = dp(26)
+        relojIzquierda?.let { reloj ->
+            capa.addView(reloj, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START).apply {
+                topMargin = dp(22)
                 marginStart = dp(MARGEN)
             })
+            // La hora queda a la misma altura que el clima y el logo de la derecha.
+            capa.viewTreeObserver.addOnGlobalLayoutListener {
+                reloj.translationY = (info.top + info.height / 2f) - (reloj.top + reloj.height / 2f)
+            }
         }
 
         // Marquita al borde: avisa que a la izquierda hay un menú.
@@ -559,7 +566,14 @@ class MainActivity : Activity() {
         val clima = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.END
-            addView(climaAhora.apply { setPadding(0, 0, 0, 0); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) })
+            // Con tope de ancho: un clima con texto largo no se mete debajo de la isla.
+            addView(climaAhora.apply {
+                setPadding(0, 0, 0, 0)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                maxWidth = dp(200)
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            })
             addView(climaDetalle)
         }
         return LinearLayout(this).apply {
@@ -692,6 +706,7 @@ class MainActivity : Activity() {
                 cambiarPagina(p)
             }, null))
         }
+        caja.addView(itemLateral("Prender PC", R.drawable.ic_power, null, { menuPcs() }, null))
         caja.addView(separador())
         etiquetaRapida = TextView(this).apply {
             setTextColor(0xB3FFFFFF.toInt())
@@ -1421,6 +1436,61 @@ class MainActivity : Activity() {
         return String.format("%.1f GB libres", datos.availableBytes / (1024.0 * 1024 * 1024))
     }
 
+    // ---------- Prender PC (Wake on LAN) ----------
+
+    /** Lista de PC con su estado (prendida o apagada); al elegir una, la prende. */
+    private fun menuPcs() {
+        val pcs = Pcs.lista(this)
+        if (pcs.isEmpty()) {
+            Toast.makeText(this, "Todavía no hay PC cargadas", Toast.LENGTH_LONG).show()
+            return
+        }
+        Thread {
+            // Se revisan todas a la vez para no hacer esperar.
+            val estados = BooleanArray(pcs.size)
+            pcs.mapIndexed { i, pc -> Thread { estados[i] = Pcs.prendida(pc) }.apply { start() } }.forEach { it.join() }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                mostrarDialogo("Prender PC", null, pcs.mapIndexed { i, pc ->
+                    (if (estados[i]) "${pc.nombre}  ·  prendida" else "${pc.nombre}  ·  apagada") to { prenderPc(pc, estados[i]) }
+                })
+            }
+        }.start()
+    }
+
+    private fun prenderPc(pc: Pcs.Pc, yaPrendida: Boolean) {
+        if (yaPrendida) {
+            Toast.makeText(this, "${pc.nombre} ya está prendida", Toast.LENGTH_SHORT).show()
+            return
+        }
+        Toast.makeText(this, "Prendiendo ${pc.nombre}…", Toast.LENGTH_SHORT).show()
+        val app = applicationContext
+        Thread {
+            val salio = try { Pcs.prender(pc) } catch (e: Exception) { false }
+            if (!salio) {
+                runOnUiThread { Toast.makeText(app, "No se pudo mandar la señal a ${pc.nombre}", Toast.LENGTH_LONG).show() }
+                return@Thread
+            }
+            if (pc.ip.isBlank()) return@Thread
+            // Espera hasta un minuto y medio a que la PC conteste, para avisar que ya arrancó.
+            repeat(18) {
+                Thread.sleep(5000)
+                if (Pcs.prendida(pc)) {
+                    runOnUiThread { Toast.makeText(app, "${pc.nombre} ya está prendida", Toast.LENGTH_LONG).show() }
+                    return@Thread
+                }
+            }
+            runOnUiThread { Toast.makeText(app, "${pc.nombre} todavía no contesta", Toast.LENGTH_LONG).show() }
+        }.start()
+    }
+
+    /** Carga la lista de PC que llega desde la PC con ADB (am start ... --es pcs '[...]'). */
+    private fun recibirPcs(intent: Intent?) {
+        val json = intent?.getStringExtra("pcs") ?: return
+        intent.removeExtra("pcs")
+        if (Pcs.guardar(this, json)) Toast.makeText(this, "PC cargadas: ${Pcs.lista(this).size}", Toast.LENGTH_SHORT).show()
+    }
+
     private fun menuOptimizar() {
         mostrarDialogo("Optimizar", null, listOf(
             "Optimizar ahora (${memoriaLibreMb()} MB libres)" to { optimizar() },
@@ -1581,6 +1651,7 @@ class MainActivity : Activity() {
         texto == "Desinstalar" -> R.drawable.ic_borrar
         texto.startsWith("Almacenamiento") -> R.drawable.ic_herramientas
         texto.startsWith("Ajustes") -> R.drawable.ic_config
+        texto.endsWith("prendida") || texto.endsWith("apagada") -> R.drawable.ic_power
         else -> null
     }
 

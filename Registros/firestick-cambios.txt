@@ -116,3 +116,11 @@ INSTALADA com.pachi.tv 1.26 (Ziota: hora y clima arriba a la izquierda; acentos 
 NOTA      el Fire Stick ahora está en 192.168.100.68 (antes .77)
 INSTALADA com.pachi.tv 1.27 (Ziota: hora y fecha a la izquierda, clima a la derecha junto al logo; el logo grande de la app baja para no tapar la hora) en Fire Stick 192.168.100.68 y Chromecast -> Success
 VERIFICADO captura con Stremio y Apple TV enfocadas: nada se superpone
+
+--- 17/11/2026: Ziota 1.28, Prender PC desde la tele ---
+INSTALADA com.pachi.tv 1.28 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    la isla de música abierta es más angosta (280 en vez de 340) y ya no tapa el clima
+CAMBIO    la hora queda a la misma altura que el clima y el logo
+NUEVO     menú lateral -> "Prender PC": lista las PC con su estado (prendida/apagada) y manda Wake on LAN
+CARGADAS  2 PC (Mi PC y PC mari) copiadas de WolPuente del celular a Ziota con: am start -n com.pachi.tv/.MainActivity --es pcs '[...]'
+VERIFICADO en el Fire Stick: la lista muestra "Mi PC · prendida" y "PC mari · apagada" (no se mandó ninguna señal de prueba)
