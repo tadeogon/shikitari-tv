@@ -456,7 +456,8 @@ class MainActivity : Activity() {
         // Recorta al bajar: las filas no pueden pasar por encima del logo grande.
         val columna = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         destacado = armarDestacado()
-        columna.addView(destacado, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(136)))
+        // Más alto que antes: el logo de la app arranca debajo de la hora y nunca la tapa.
+        columna.addView(destacado, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160)))
 
         contenido = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -517,7 +518,7 @@ class MainActivity : Activity() {
         return raiz
     }
 
-    /** Arriba a la derecha queda solo el logo; la hora, la fecha y el clima van arriba a la izquierda (relojIzquierda). */
+    /** Arriba a la derecha: el clima y el logo. La hora y la fecha van arriba a la izquierda (relojIzquierda). */
     private fun armarInfo(): View {
         val textos = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -546,36 +547,28 @@ class MainActivity : Activity() {
             setTextColor(0x99FFFFFF.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
         }
-        run {
-            // Hora y clima juntos arriba a la izquierda (la fecha chiquita abajo del clima),
-            // así a la derecha queda solo el logo y la vitrina sube y gana lugar.
-            val clima = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(climaAhora.apply { setPadding(0, 0, 0, 0); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) })
-                addView(LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    addView(fecha.apply { setTextColor(0x99FFFFFF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f) })
-                    addView(TextView(this@MainActivity).apply {
-                        text = "  ·  "
-                        setTextColor(0x99FFFFFF.toInt())
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    })
-                    addView(climaDetalle)
-                })
-            }
-            relojIzquierda = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                addView(hora)
-                addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) },
-                    LinearLayout.LayoutParams(dp(1), dp(26)).apply { marginStart = dp(14); marginEnd = dp(14) })
-                addView(clima)
-            }
+        // A la izquierda: la hora con la fecha al lado. A la derecha: el clima junto al logo.
+        relojIzquierda = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(hora)
+            addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) },
+                LinearLayout.LayoutParams(dp(1), dp(26)).apply { marginStart = dp(14); marginEnd = dp(14) })
+            addView(fecha.apply { setTextColor(0xB3FFFFFF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) })
+        }
+        val clima = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.END
+            addView(climaAhora.apply { setPadding(0, 0, 0, 0); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) })
+            addView(climaDetalle)
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            // El logo queda centrado a la altura del bloque de hora, fecha y clima.
+            // El logo queda centrado a la altura del clima.
             gravity = Gravity.CENTER_VERTICAL
+            addView(clima)
+            addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) },
+                LinearLayout.LayoutParams(dp(1), dp(26)).apply { marginStart = dp(14); marginEnd = dp(14) })
             addView(ImageView(this@MainActivity).apply {
                 setImageResource(R.drawable.logo_chico)
                 contentDescription = getString(R.string.app_name)

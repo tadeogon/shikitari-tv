@@ -111,3 +111,8 @@ INSTALADA com.pachi.tv 1.25 (nombre Ziota, logo nuevo) en Fire Stick 192.168.100
 NOTA      el paquete sigue siendo com.pachi.tv: se conservan Home, botones remapeados y ajustes
 VERIFICADO Inicio desde Spotify abre Ziota; logo arriba a la derecha centrado con hora/fecha/clima
 INSTALADA com.pachi.tv 1.26 (Ziota: hora y clima arriba a la izquierda; acentos de la pantalla principal arreglados) en Fire Stick y Chromecast -> Success
+
+--- 17/11/2026: Ziota 1.27, la hora ya no queda tapada ---
+NOTA      el Fire Stick ahora está en 192.168.100.68 (antes .77)
+INSTALADA com.pachi.tv 1.27 (Ziota: hora y fecha a la izquierda, clima a la derecha junto al logo; el logo grande de la app baja para no tapar la hora) en Fire Stick 192.168.100.68 y Chromecast -> Success
+VERIFICADO captura con Stremio y Apple TV enfocadas: nada se superpone
