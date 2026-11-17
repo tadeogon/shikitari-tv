@@ -62,6 +62,37 @@ sealed interface Ruta {
     data class Launcher(val cual: com.shikitari.instalador.ui.Launcher) : Ruta
     data object Claude : Ruta
     data object Historial : Ruta
+    data object OptimizarApps : Ruta
+}
+
+/** Optimizar de verdad: la pantalla de grupos con el motor que lee y cambia la TV conectada. */
+@Composable
+private fun RutaOptimizar(app: EstadoApp, onAtras: () -> Unit) {
+    val contexto = androidx.compose.ui.platform.LocalContext.current
+    val proveedor = remember { AdaptadorPlan(app) }
+    var scriptPendiente by remember { mutableStateOf<String?>(null) }
+    val guardar = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri ->
+        val texto = scriptPendiente
+        scriptPendiente = null
+        if (uri == null || texto == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            contexto.contentResolver.openOutputStream(uri)?.use { it.write(texto.toByteArray()) } ?: error("sin archivo")
+        }.isSuccess
+        app.cartel.avisar(ok, if (ok) "Script guardado" else "No se pudo guardar el script")
+    }
+    val gamaBaja = contexto.getSystemService(android.app.ActivityManager::class.java)?.isLowRamDevice == true
+    PantallaOptimizar(
+        proveedor = proveedor,
+        // Desenfoque real detrás de la hoja solo si el teléfono lo banca.
+        desenfoque = android.os.Build.VERSION.SDK_INT >= 31 && !gamaBaja,
+        alSalir = onAtras,
+        alGuardarScript = { texto ->
+            scriptPendiente = texto
+            guardar.launch("shikitari-optimizar.txt")
+        },
+    )
 }
 
 @Composable
@@ -104,12 +135,13 @@ fun AppShikitari(app: EstadoApp, control: EstadoControl, archivos: EstadoArchivo
                             is Ruta.Launcher -> PantallaLauncher(app, ruta.cual, onAtras = volver, elegirPortada = elegirPortada)
                             Ruta.Claude -> PantallaClaude(app, onAtras = volver)
                             Ruta.Historial -> PantallaHistorial(app, onAtras = volver)
+                            Ruta.OptimizarApps -> RutaOptimizar(app, onAtras = volver)
                         }
                     } else {
                         when (p) {
                             Pestana.TV -> PestanaTv(app, irA, irAPestana)
                             Pestana.CONTROL -> PestanaControl(app, control, irA, irAPestana)
-                            Pestana.OPTIMIZAR -> PestanaOptimizar(app, irAPestana)
+                            Pestana.OPTIMIZAR -> PestanaOptimizar(app, irA, irAPestana)
                             Pestana.MAS -> PestanaMas(app, irA)
                         }
                     }

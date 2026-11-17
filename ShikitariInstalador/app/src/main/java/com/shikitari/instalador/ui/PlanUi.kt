@@ -18,6 +18,7 @@ data class PlanUi(
     val seQuedan: List<EntradaUi>,   // con motivo
     val perfilConocido: Boolean,
     val esEjemplo: Boolean,          // true = datos de muestra, no cambia nada en la TV
+    val yaApagadas: List<EntradaUi> = emptyList(), // de las listas, las que ya estaban apagadas (motivo = grupo)
 ) {
     fun todos(): List<EntradaUi> = grupos.flatMap { it.entradas }
 }

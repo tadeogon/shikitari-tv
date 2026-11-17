@@ -38,7 +38,7 @@ import com.shikitari.instalador.Modelo
 // ---------- Pestaña Optimizar (la de verdad) ----------
 
 @Composable
-fun PestanaOptimizar(app: EstadoApp, irAPestana: (Pestana) -> Unit) {
+fun PestanaOptimizar(app: EstadoApp, irA: (Ruta) -> Unit, irAPestana: (Pestana) -> Unit) {
     Pagina(titulo = "Optimizar", subtitulo = app.conectada?.nombre) {
         if (app.conectada == null) {
             SinTv(irAPestana)
@@ -46,13 +46,13 @@ fun PestanaOptimizar(app: EstadoApp, irAPestana: (Pestana) -> Unit) {
         }
         Tarjeta(Modifier.padding(top = Espacio.hueco)) {
             NotaTarjeta(
-                "La app se da cuenta sola de qué TV es. En Google TV quita ${AccionesTv.LIMPIEZA_SEGURA.size} apps de Google que no hacen falta; " +
-                    "en Fire TV apaga ${AccionesTv.LIMPIEZA_FIRE.size} apps de Amazon de rastreo, publicidad y promos. " +
-                    "Alexa, Prime Video, la tienda y el control no se tocan. Todo se puede deshacer.",
+                "La app mira qué apps tiene tu TV y te muestra, por grupos, las que conviene apagar: rastreo, publicidad, " +
+                    "tutoriales y restos que no se usan. Vos elegís cuáles. Alexa, Prime Video, la tienda y el control " +
+                    "no se tocan. Nada se borra y todo se puede deshacer.",
             )
         }
         Hueco()
-        BotonPrincipal("Optimizar", onClick = { app.ejecutar("Optimizar") { app.acciones.optimizar() } })
+        BotonPrincipal("Optimizar", onClick = { if (app.hayTv()) irA(Ruta.OptimizarApps) })
         Hueco(10)
         BotonSecundario("Cerrar apps abiertas", onClick = { app.ejecutar("Cerrar apps abiertas") { app.acciones.cerrarApps() } })
 

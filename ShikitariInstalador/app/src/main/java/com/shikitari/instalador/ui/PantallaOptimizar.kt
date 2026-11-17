@@ -101,12 +101,14 @@ sealed interface Estado {
     data class Fallo(val plan: PlanUi?, val mensaje: String) : Estado
 }
 
-private const val NOTA_EJEMPLO = "Vista de prueba con datos de ejemplo: todavía no cambia nada en tu TV."
-
 private val GuardarSeleccion = Saver<MutableState<Set<String>?>, ArrayList<String>>(
     save = { estado -> estado.value?.let { ArrayList(it) } },
     restore = { mutableStateOf(it.toSet()) },
 )
+
+/** Al empezar quedan elegidos solo los grupos recomendados (lo de «Todo» se elige a mano). */
+private fun recomendadas(plan: PlanUi): Set<String> =
+    plan.grupos.filter { it.recomendado }.flatMap { g -> g.entradas.map { it.paquete } }.toSet()
 
 /** Los paquetes a apagar, en el orden del plan. */
 private fun ordenados(plan: PlanUi, apagar: Set<String>): List<String> =
@@ -115,7 +117,6 @@ private fun ordenados(plan: PlanUi, apagar: Set<String>): List<String> =
 private fun scriptDe(plan: PlanUi, paquetes: List<String>): String = buildString {
     appendLine("# Shikitari · Optimizar · ${plan.modelo}")
     appendLine("# Lo que se apagó, para repetirlo o deshacerlo desde una PC con adb.")
-    if (plan.esEjemplo) appendLine("# Generado con datos de ejemplo (vista de prueba).")
     appendLine()
     appendLine("# Apagar")
     paquetes.forEach { appendLine("adb shell pm disable-user --user 0 $it") }
@@ -144,6 +145,7 @@ fun PantallaOptimizar(
     var animRapidas by rememberSaveable { mutableStateOf(false) }
     var trabajo by remember { mutableStateOf<Job?>(null) }
     var deshaciendo by remember { mutableStateOf(false) }
+    var prendiendo by remember { mutableStateOf<String?>(null) }
     var ultimoPlan by remember { mutableStateOf<PlanUi?>(null) }
     var ultimaLista by remember { mutableStateOf(emptyList<String>()) }
     var inicioLimpieza by remember { mutableLongStateOf(0L) }
@@ -159,7 +161,7 @@ fun PantallaOptimizar(
                     estado = Estado.Analizando(listOfNotNull(plan.modelo, plan.totalApps?.let { "$it apps" }).joinToString(" · "))
                     // Al menos 0,6 s en «Analizando», aunque responda antes.
                     delay(maxOf(600 - (SystemClock.elapsedRealtime() - inicio), 250))
-                    if (seleccion == null) seleccion = plan.todos().map { it.paquete }.toSet()
+                    if (seleccion == null) seleccion = recomendadas(plan)
                     estado = Estado.Mostrando(plan)
                 }
                 is Resultado.Error -> estado = Estado.Fallo(ultimoPlan, r.mensaje)
@@ -218,7 +220,7 @@ fun PantallaOptimizar(
             when (r) {
                 is Resultado.Ok -> {
                     val p = plan ?: ultimoPlan
-                    seleccion = p?.todos()?.map { it.paquete }?.toSet()
+                    seleccion = p?.let { recomendadas(it) }
                     apagarAlexa = false
                     animRapidas = false
                     if (p != null) estado = Estado.Mostrando(p) else analizar()
@@ -226,6 +228,24 @@ fun PantallaOptimizar(
                 }
                 is Resultado.Error -> estado = Estado.Fallo(plan, r.mensaje)
             }
+        }
+    }
+
+    /** Prende una sola de las ya apagadas y vuelve a leer la TV para mostrar cómo quedó. */
+    fun prender(en: EntradaUi) {
+        prendiendo = en.paquete
+        alcance.launch {
+            when (val r = proveedor.prender(en.paquete)) {
+                is Resultado.Ok -> {
+                    (proveedor.analizar() as? Resultado.Ok)?.let {
+                        ultimoPlan = it.valor
+                        estado = Estado.Mostrando(it.valor)
+                    }
+                    aviso.mostrar("${en.nombre} prendida de nuevo")
+                }
+                is Resultado.Error -> aviso.mostrar(r.mensaje)
+            }
+            prendiendo = null
         }
     }
 
@@ -268,6 +288,8 @@ fun PantallaOptimizar(
                                 onAlternar = { p -> seleccion = if (p in sel) sel - p else sel + p },
                                 onLimpiar = { limpiar(e.plan) },
                                 onPersonalizar = { hojaAbierta = true },
+                                prendiendo = prendiendo,
+                                onPrender = { en -> prender(en) },
                             )
                         }
                         is Estado.Limpiando -> VistaLimpiando(e, onParar = { parar() })
@@ -404,8 +426,11 @@ private fun VistaPlan(
     onAlternar: (String) -> Unit,
     onLimpiar: () -> Unit,
     onPersonalizar: () -> Unit,
+    prendiendo: String? = null,
+    onPrender: (EntradaUi) -> Unit = {},
 ) {
     var pista by remember { mutableStateOf(true) }
+    var verApagadas by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(4500)
         pista = false
@@ -430,7 +455,6 @@ private fun VistaPlan(
                             style = Letras.detalle,
                             modifier = Modifier.padding(top = 2.dp),
                         )
-                        if (plan.esEjemplo) Text(NOTA_EJEMPLO, style = Letras.nota, modifier = Modifier.padding(top = 6.dp))
                         Segmentado(todo = filtroTodo, onCambio = onFiltro)
                     }
                 }
@@ -449,6 +473,40 @@ private fun VistaPlan(
                                         accion = { Pastilla(if (apagar) "Apagar" else "Se queda", activa = apagar) },
                                         onClick = { onAlternar(en.paquete) },
                                     )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (plan.grupos.isEmpty()) {
+                    item(key = "limpia") {
+                        Tarjeta(Modifier.padding(top = Espacio.hueco)) {
+                            NotaTarjeta("Tu TV ya está optimizada: no queda nada de la lista para apagar. Abajo podés ver lo que ya está apagado y prender alguna si la extrañás.")
+                        }
+                    }
+                }
+                if (plan.yaApagadas.isNotEmpty()) {
+                    item(key = "apagadas") {
+                        Column(Modifier.animateItem()) {
+                            EtiquetaSeccion("Ya apagadas", extra = plan.yaApagadas.size.toString())
+                            Tarjeta {
+                                Fila(
+                                    titulo = if (verApagadas) "Ocultar la lista" else "Ver cuáles son",
+                                    subtitulo = "Tocá una para prenderla de nuevo",
+                                    primera = true,
+                                    accion = { Pastilla(if (verApagadas) "Ocultar" else "Ver", activa = false) },
+                                    onClick = { verApagadas = !verApagadas },
+                                )
+                                if (verApagadas) {
+                                    plan.yaApagadas.forEach { en ->
+                                        Fila(
+                                            titulo = en.nombre,
+                                            subtitulo = "${en.motivo} · ${en.paquete}",
+                                            primera = false,
+                                            accion = { Pastilla(if (prendiendo == en.paquete) "Prendiendo…" else "Prender", activa = false) },
+                                            onClick = { if (prendiendo == null) onPrender(en) },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -738,9 +796,6 @@ private fun VistaListo(e: Estado.Listo, deshaciendo: Boolean, onDeshacer: () -> 
                         e.resumen.avisos.forEach { LineaHecha(it, animar = false) }
                     }
                 }
-            }
-            if (e.plan.esEjemplo) {
-                Text(NOTA_EJEMPLO, style = Letras.nota, textAlign = TextAlign.Center, modifier = Modifier.padding(top = Espacio.hueco))
             }
         }
         Pie {
