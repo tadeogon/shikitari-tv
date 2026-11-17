@@ -124,3 +124,8 @@ CAMBIO    la hora queda a la misma altura que el clima y el logo
 NUEVO     menú lateral -> "Prender PC": lista las PC con su estado (prendida/apagada) y manda Wake on LAN
 CARGADAS  2 PC (Mi PC y PC mari) copiadas de WolPuente del celular a Ziota con: am start -n com.pachi.tv/.MainActivity --es pcs '[...]'
 VERIFICADO en el Fire Stick: la lista muestra "Mi PC · prendida" y "PC mari · apagada" (no se mandó ninguna señal de prueba)
+
+--- 17/11/2026: Ziota 1.29 ---
+INSTALADA com.pachi.tv 1.29 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    el menú lateral ya no muestra Buscar ni Juegos (los juegos siguen en "Todas las apps")
+VERIFICADO captura del menú en el Fire Stick

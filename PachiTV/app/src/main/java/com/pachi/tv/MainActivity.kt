@@ -701,7 +701,8 @@ class MainActivity : Activity() {
         caja.addView(filaMusica)
         caja.addView(separador())
 
-        for (p in Pagina.values()) {
+        // Buscar y Juegos no se usan: quedan fuera del menú (los juegos siguen en "Todas las apps").
+        for (p in Pagina.values().filter { it != Pagina.BUSCAR && it != Pagina.JUEGOS }) {
             caja.addView(itemLateral(p.titulo, p.icono, p, {
                 cambiarPagina(p)
             }, null))
