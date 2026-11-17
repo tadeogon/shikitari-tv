@@ -49,7 +49,103 @@ class EstadoApp(contextoActividad: Context) {
     }
 
     fun cerrar() {
+        pararVigia()
+        tv.alFallar = null
         trabajo.shutdownNow()
+        vigia.shutdownNow()
+    }
+
+    // ---------- Vigía de la conexión ----------
+    // La conexión con la TV a veces queda «colgada» (la TV entró en reposo, el celular se bloqueó,
+    // la TV cambió de puerto). Antes la app se quedaba esperando sin avisar. Ahora:
+    // 1) cada 20 segundos, y al volver a la app, prueba si la TV contesta;
+    // 2) si un pedido falla, prueba enseguida;
+    // 3) si no contesta, reconecta sola (buscando el puerto nuevo si cambió);
+    // 4) si tampoco puede, muestra arriba «Se desconectó» con un botón para volver a conectar.
+
+    enum class Enlace { BIEN, RECONECTANDO, PERDIDO }
+
+    var enlace by mutableStateOf(Enlace.BIEN)
+        private set
+
+    private val vigia = Executors.newSingleThreadExecutor()
+    private val revisando = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val candado = Any()
+    private var vigiaPrendido = false
+    @Volatile
+    private var ultimaRevision = 0L
+    private val vuelta = object : Runnable {
+        override fun run() {
+            revisarConexion()
+            principal.postDelayed(this, 20_000)
+        }
+    }
+
+    init {
+        tv.alFallar = { revisarConexion() }
+    }
+
+    /** Se llama al volver a la app: revisa enseguida y después cada 20 s. */
+    fun iniciarVigia() {
+        if (vigiaPrendido) return
+        vigiaPrendido = true
+        principal.post(vuelta)
+    }
+
+    /** Se llama al salir de la app (no tiene sentido revisar con la pantalla apagada). */
+    fun pararVigia() {
+        vigiaPrendido = false
+        principal.removeCallbacks(vuelta)
+    }
+
+    /** Revisa la conexión en segundo plano (si ya se está revisando, no hace nada). */
+    fun revisarConexion() {
+        if (conectada == null) return
+        // Si ya está perdida, no insisto más de una vez cada 15 s (si la TV vuelve, se reconecta sola).
+        val ahora = System.currentTimeMillis()
+        if (enlace == Enlace.PERDIDO && ahora - ultimaRevision < 15_000) return
+        if (!revisando.compareAndSet(false, true)) return
+        ultimaRevision = ahora
+        try {
+            vigia.execute {
+                try {
+                    tvLista()
+                } finally {
+                    revisando.set(false)
+                }
+            }
+        } catch (e: Exception) {
+            revisando.set(false)
+        }
+    }
+
+    /**
+     * Devuelve true si la TV contesta; si no, intenta reconectar sola. Se llama desde un hilo de fondo.
+     * Si no hay forma, deja el aviso de «Se desconectó» y devuelve false.
+     */
+    private fun tvLista(): Boolean = synchronized(candado) {
+        val t = conectada ?: return false
+        if (tv.responde()) {
+            if (enlace != Enlace.BIEN) enUi { enlace = Enlace.BIEN }
+            return true
+        }
+        if (enlace != Enlace.PERDIDO) enUi { enlace = Enlace.RECONECTANDO }
+        tv.soltar()
+        val r = try {
+            conectarA(t.ip, t.puerto)
+        } catch (e: Exception) {
+            ""
+        }
+        val ok = r.contains("✓")
+        Bitacora.anotar(contexto, "▸ Se cortó la conexión con ${t.nombre}\n" + if (ok) "Reconectada sola ✓" else "No se pudo reconectar sola.")
+        enUi { enlace = if (ok) Enlace.BIEN else Enlace.PERDIDO }
+        ok
+    }
+
+    /** Botón «Volver a conectar» del aviso. */
+    fun volverAConectar() {
+        val t = conectada ?: return
+        conectar(t)
     }
 
     // ---------- Hacer cosas en segundo plano con el cartel ----------
@@ -70,7 +166,12 @@ class EstadoApp(contextoActividad: Context) {
         cartel.trabajando(titulo)
         trabajo.execute {
             val resultado = try {
-                accion()
+                // Antes de mandar algo, confirmo que la TV contesta (si no, reconecto sola).
+                if (requiereTv && !tvLista()) {
+                    "Se perdió la conexión con la TV y no se pudo reconectar sola. Tocá «Volver a conectar» arriba."
+                } else {
+                    accion()
+                }
             } catch (e: Exception) {
                 explicarError(e)
             }
@@ -106,7 +207,9 @@ class EstadoApp(contextoActividad: Context) {
 
     fun buscarTvs() {
         ejecutar("Buscando TVs en el Wi-Fi", requiereTv = false) {
-            val halladas = BuscadorTvs.buscar(contexto)
+            // Las nuevas se anuncian solas; Fire TV y las viejas (puerto 5555) hay que buscarlas una por una.
+            // (si una TV aparece de las dos formas, gana el puerto anunciado)
+            val halladas = BuscadorTvs.buscarViejas(contexto) + BuscadorTvs.buscar(contexto)
             val guardadas = MisTvs.cargar(contexto).associateBy { it.ip }
             enUi { nuevas = halladas.filterKeys { it !in guardadas } }
             if (halladas.isEmpty()) {
@@ -126,8 +229,9 @@ class EstadoApp(contextoActividad: Context) {
      * lo busca en el Wi-Fi y prueba de nuevo. Al conectar, la TV queda guardada en "Mis TVs".
      * Se llama desde un hilo de fondo.
      */
-    private fun conectarA(host: String, puertoGuardado: Int): String {
-        if (host.isBlank()) return "Escribí la IP de la TV."
+    private fun conectarA(hostGuardado: String, puertoGuardado: Int): String {
+        if (hostGuardado.isBlank()) return "Escribí la IP de la TV."
+        var host = hostGuardado
         var puerto = puertoGuardado
         var ok = puerto > 0 && intentar(host, puerto)
         if (!ok) {
@@ -140,13 +244,34 @@ class EstadoApp(contextoActividad: Context) {
                 ok = intentar(host, puerto)
             }
         }
-        if (!ok) return "No se pudo conectar con $host. Revisá que la TV esté prendida y con la Depuración inalámbrica activada; si es nueva, agregala con el código."
+        if (!ok && puertoGuardado == 5555) {
+            // Fire TV / TV vieja: puede que el router le haya dado otra IP. La busco en la red
+            // y confirmo que sea la misma (mismo modelo) antes de mover el guardado.
+            val guardadas = MisTvs.cargar(contexto)
+            val esta = guardadas.firstOrNull { it.ip == hostGuardado }
+            val ocupadas = guardadas.map { it.ip }.toSet()
+            for (ip in BuscadorTvs.buscarViejas(contexto).keys - ocupadas) {
+                if (!intentar(ip, 5555)) continue
+                val modelo = try { tv.ejecutar("getprop ro.product.model", segundos = 8).trim() } catch (e: Exception) { "" }
+                if (esta == null || esta.modelo.isBlank() || modelo == esta.modelo) {
+                    MisTvs.mudar(contexto, hostGuardado, ip)
+                    Bitacora.anotar(contexto, "▸ ${esta?.nombre ?: "La TV"} cambió de IP: $hostGuardado → $ip")
+                    host = ip
+                    puerto = 5555
+                    ok = true
+                    break
+                }
+            }
+        }
+        if (!ok) return "No se pudo conectar con $host. Revisá que la TV esté prendida y con la depuración activada. " +
+            "Si en la TV aparece «¿Permitir depuración?», marcá «Siempre» y aceptá; después tocala de nuevo."
         prefs.edit().putString("ip", host).putString("puerto", puerto.toString()).apply()
         val modelo = try { tv.ejecutar("getprop ro.product.model").trim() } catch (e: Exception) { "" }
         val guardada = MisTvs.recordar(contexto, host, puerto, modelo)
         val info = acciones.infoTv().removePrefix("Conectado a ")
         enUi {
             conectada = guardada
+            enlace = Enlace.BIEN
             infoConectada = info
             tvs = MisTvs.cargar(contexto)
             nuevas = nuevas - host

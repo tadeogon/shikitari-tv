@@ -56,6 +56,13 @@ object MisTvs {
     fun renombrar(contexto: Context, ip: String, nombre: String) =
         guardar(contexto, cargar(contexto).map { if (it.ip == ip) it.copy(nombre = nombre) else it })
 
+    /** La TV es la misma pero el router le dio otra IP: se mueve el guardado (con su nombre) a la IP nueva. */
+    fun mudar(contexto: Context, ipVieja: String, ipNueva: String) =
+        guardar(
+            contexto,
+            cargar(contexto).filter { it.ip != ipNueva }.map { if (it.ip == ipVieja) it.copy(ip = ipNueva) else it },
+        )
+
     fun borrar(contexto: Context, ip: String) =
         guardar(contexto, cargar(contexto).filter { it.ip != ip })
 
@@ -110,5 +117,34 @@ object BuscadorTvs {
             listo.await(3, TimeUnit.SECONDS)
         }
         return resultado
+    }
+
+    /**
+     * Fire TV y TVs viejas usan «Depuración ADB» en el puerto 5555 y no se anuncian en el Wi-Fi.
+     * Si el router les cambia la IP, la única forma de encontrarlas es probar cada dirección
+     * de la red (192.168.x.1 a 254) a ver cuál tiene ese puerto abierto. Tarda 1 o 2 segundos.
+     */
+    fun buscarViejas(contexto: Context): Map<String, Int> {
+        val cm = contexto.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val propia = cm.getLinkProperties(cm.activeNetwork)?.linkAddresses
+            ?.map { it.address }?.firstOrNull { it is java.net.Inet4Address }?.hostAddress ?: return emptyMap()
+        val base = propia.substringBeforeLast('.')
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(48)
+        try {
+            val pedidos = (1..254).map { "$base.$it" }.filter { it != propia }.map { ip ->
+                pool.submit<String?> {
+                    try {
+                        java.net.Socket().use { it.connect(java.net.InetSocketAddress(ip, 5555), 400) }
+                        ip
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+            return pedidos.mapNotNull { try { it.get(5, TimeUnit.SECONDS) } catch (e: Exception) { null } }
+                .associateWith { 5555 }
+        } finally {
+            pool.shutdownNow()
+        }
     }
 }

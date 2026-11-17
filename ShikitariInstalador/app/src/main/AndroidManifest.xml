@@ -24,11 +24,5 @@
             android:name=".RecorteActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-        <!-- Optimizar con la interfaz nueva (Compose, paquete ui/) -->
-        <activity
-            android:name=".ui.OptimizarActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@android:style/Theme.Material.NoActionBar" />
     </application>
 </manifest>

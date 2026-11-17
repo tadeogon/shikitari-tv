@@ -67,6 +67,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Al volver a la app revisa enseguida si la TV sigue conectada (y reconecta sola si hace falta).
+    override fun onStart() {
+        super.onStart()
+        app.iniciarVigia()
+    }
+
+    override fun onStop() {
+        app.pararVigia()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         if (::app.isInitialized) {
             app.cerrar()

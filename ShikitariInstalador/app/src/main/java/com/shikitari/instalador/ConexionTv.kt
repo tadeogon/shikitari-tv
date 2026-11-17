@@ -33,6 +33,9 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
 
     init {
         api = 30 // Depuración inalámbrica con emparejamiento existe desde Android 11 (API 30)
+        // Sin esto, si la TV no contesta el saludo, la librería espera PARA SIEMPRE
+        // (era el «Conectando…» que no terminaba nunca). 15 s da tiempo a aceptar el cartel en la TV.
+        setTimeout(15, TimeUnit.SECONDS)
         val archivoLlave = File(contexto.filesDir, "adb.key")
         val archivoCert = File(contexto.filesDir, "adb.crt")
         if (archivoLlave.exists() && archivoCert.exists()) {
@@ -57,9 +60,47 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     override fun getCertificate(): Certificate = certificado
     override fun getDeviceName(): String = "Shikitari Instalador"
 
+    /**
+     * Se llama (en un hilo de fondo) cuando un pedido a la TV falla o se cuelga, para que la app
+     * revise si la conexión sigue viva y, si no, reconecte o avise.
+     */
+    @Volatile
+    var alFallar: (() -> Unit)? = null
+
+    /** Corre [bloque] y, si falla de verdad (no el "Stream closed" normal), avisa con [alFallar]. */
+    private fun <T> vigilado(bloque: () -> T): T =
+        try {
+            bloque()
+        } catch (e: Exception) {
+            alFallar?.invoke()
+            throw e
+        }
+
+    /** Prueba rápida: ¿la TV contesta? Manda un "echo" y espera como mucho [segundos]. No reconecta ni avisa. */
+    fun responde(segundos: Long = 5): Boolean {
+        if (!isConnected) return false
+        return try {
+            correr("echo ok", segundos).trim() == "ok"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Suelta la conexión (por ejemplo, cuando quedó colgada) sin tirar error. */
+    fun soltar() {
+        try {
+            disconnect()
+        } catch (_: Exception) {
+        }
+    }
+
     /** Ejecuta un comando en la TV y devuelve todo lo que imprime. Corta a los [segundos] por si se cuelga. */
-    fun ejecutar(comando: String, segundos: Long = 60): String {
+    fun ejecutar(comando: String, segundos: Long = 60): String = vigilado {
         asegurarConexion()
+        correr(comando, segundos)
+    }
+
+    private fun correr(comando: String, segundos: Long): String {
         val tarea = Executors.newSingleThreadExecutor()
         try {
             return tarea.submit<String> {
@@ -76,7 +117,9 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     }
 
     /** Trae los bytes que devuelve un comando, sin convertirlos a texto (igual que "adb exec-out"). Sirve para las capturas. */
-    fun leerBinario(comando: String, segundos: Long = 10): ByteArray {
+    fun leerBinario(comando: String, segundos: Long = 10): ByteArray = vigilado { leerBinarioSinVigilar(comando, segundos) }
+
+    private fun leerBinarioSinVigilar(comando: String, segundos: Long): ByteArray {
         asegurarConexion()
         val tarea = Executors.newSingleThreadExecutor()
         try {
@@ -154,6 +197,7 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     private var ultimoPuerto = 0
 
     /** Conecta de nuevo aunque haya quedado abierta una conexión vieja, y recuerda a dónde para reconectar sola. */
+    @Synchronized
     fun reconectar(host: String, puerto: Int): Boolean {
         try {
             disconnect()
@@ -168,6 +212,7 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     }
 
     /** Si la conexión se cortó (la TV entró en reposo, se cambió de app, etc.), vuelve a conectar sola. */
+    @Synchronized
     private fun asegurarConexion() {
         if (isConnected) return
         val host = ultimoHost ?: throw IOException("Primero tocá Conectar.")

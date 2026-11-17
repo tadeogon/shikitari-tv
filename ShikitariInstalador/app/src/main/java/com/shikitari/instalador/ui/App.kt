@@ -22,6 +22,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -125,7 +130,61 @@ fun AppShikitari(app: EstadoApp, control: EstadoControl, archivos: EstadoArchivo
                 .navigationBarsPadding()
                 .padding(start = Espacio.borde, end = Espacio.borde, bottom = if (pila.isEmpty()) 76.dp else 92.dp),
         )
+        AvisoConexion(app, Modifier.align(Alignment.TopCenter))
         CapaDialogos(app.dialogos)
+    }
+}
+
+/**
+ * Franja de arriba que aparece sola si se corta la conexión con la TV:
+ * «Reconectando…» mientras lo intenta, y «Se desconectó» con un botón si no pudo.
+ */
+@Composable
+private fun AvisoConexion(app: EstadoApp, modifier: Modifier) {
+    val t = app.conectada
+    val enlace = app.enlace
+    AnimatedVisibility(
+        visible = t != null && enlace != EstadoApp.Enlace.BIEN,
+        modifier = modifier,
+        enter = fadeIn() + slideInVertically { -it },
+        exit = fadeOut() + slideOutVertically { -it },
+    ) {
+        val perdido = enlace == EstadoApp.Enlace.PERDIDO
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(if (perdido) Color(0xF2401818) else Color(0xF2222226))
+                .statusBarsPadding()
+                .padding(start = Espacio.borde, end = 10.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (perdido) {
+                Text("!", color = Colores.error, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
+            } else {
+                CircularProgressIndicator(Modifier.size(18.dp), color = Colores.texto, strokeWidth = 2.dp)
+                Spacer(Modifier.width(12.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (perdido) "Se desconectó ${t?.nombre ?: "la TV"}" else "Reconectando con ${t?.nombre ?: "la TV"}…",
+                    style = Letras.cuerpo.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                )
+                if (perdido) {
+                    Text("Revisá que la TV esté prendida y en el mismo Wi-Fi.", style = Letras.detalle.copy(fontSize = 12.sp))
+                }
+            }
+            if (perdido) {
+                Box(
+                    Modifier
+                        .clip(Formas.boton)
+                        .background(Color.White)
+                        .clickable(role = Role.Button) { app.volverAConectar() }
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                ) {
+                    Text("Volver a conectar", color = Colores.sobreAcento, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
     }
 }
 

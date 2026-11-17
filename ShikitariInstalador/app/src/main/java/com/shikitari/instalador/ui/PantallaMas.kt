@@ -39,7 +39,6 @@ import com.shikitari.instalador.Modelo
 
 @Composable
 fun PestanaOptimizar(app: EstadoApp, irAPestana: (Pestana) -> Unit) {
-    val contexto = LocalContext.current
     Pagina(titulo = "Optimizar", subtitulo = app.conectada?.nombre) {
         if (app.conectada == null) {
             SinTv(irAPestana)
@@ -72,9 +71,6 @@ fun PestanaOptimizar(app: EstadoApp, irAPestana: (Pestana) -> Unit) {
                     "Vuelve a prender las tres apps que dibujan el inicio de Amazon y lo abre de nuevo.",
                     "Arreglarlo",
                 ) { si -> if (si) app.ejecutar("El inicio de Amazon quedó en negro") { app.acciones.emergenciaFire() } }
-            }
-            FilaIr("Diseño nuevo de Optimizar", "Vista de prueba: todavía no cambia nada en la TV", Iconos.chispa) {
-                contexto.startActivity(Intent(contexto, OptimizarActivity::class.java))
             }
         }
     }

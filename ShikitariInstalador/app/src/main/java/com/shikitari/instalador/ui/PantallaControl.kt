@@ -297,7 +297,9 @@ fun PestanaControl(app: EstadoApp, control: EstadoControl, irA: (Ruta) -> Unit, 
     val conectada = app.conectada
     val ciclo = LocalLifecycleOwner.current.lifecycle
     val estadoCiclo by ciclo.currentStateFlow.collectAsStateWithLifecycle()
-    val mirando = estadoCiclo.isAtLeast(Lifecycle.State.RESUMED) && conectada != null && !control.pausa
+    // Si la conexión se cortó, deja de pedir capturas hasta que vuelva (el aviso de arriba lo explica).
+    val mirando = estadoCiclo.isAtLeast(Lifecycle.State.RESUMED) && conectada != null && !control.pausa &&
+        app.enlace == EstadoApp.Enlace.BIEN
     LaunchedEffect(mirando) {
         while (mirando) {
             control.pedirCaptura()
