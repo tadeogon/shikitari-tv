@@ -136,3 +136,11 @@ CAMBIO    tema Vice City: fondo azul noche con atardecer violeta, hora rosa, cli
 CAMBIO    vidrio (como la app del celular) en el menú lateral, los menús, los botones redondos y la isla
 NUEVO     Ajustes -> "Tema: Vice City / Clásico" para volver al de antes
 VERIFICADO capturas del inicio y del menú lateral en el Fire Stick
+
+--- 17/11/2026: el Fire Stick se trabó por memoria llena ---
+TRABA     21:18 Ziota no respondió (ANR) y después el inicio de Amazon, Ajustes y conectividad: memoria al 95%+, swap casi lleno (580 MB)
+CAUSA     varias apps juntas: com.amazon.firebat ~120 MB, Ziota ~110 MB, inicio de Amazon ~90 MB, webview ~90 MB, Spotify ~60 MB
+REINICIO  hecho por el usuario; después quedan 618 MB libres
+INSTALADA com.pachi.tv 1.31 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    con otra app adelante Ziota suelta tarjetas, logos grandes y lista de apps; al volver las arma de nuevo
+MEDIDO    Ziota en segundo plano (Spotify adelante): 53 MB en vez de ~100 MB

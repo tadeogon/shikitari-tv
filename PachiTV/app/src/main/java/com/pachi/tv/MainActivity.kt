@@ -304,6 +304,22 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    /**
+     * Con otra app adelante, Ziota suelta las tarjetas, los logos grandes y la lista de apps:
+     * en el Fire Stick la memoria es poca y la app que se está usando la necesita más.
+     * Al volver, onResume arma todo de nuevo (ya lo hacía siempre).
+     */
+    override fun onStop() {
+        super.onStop()
+        if (panelAbierto) cerrarPanel(enfocar = false)
+        contenido.removeAllViews()
+        resultados = null
+        destacada.setImageDrawable(null)
+        destacadaActual = null
+        imagenDeFondo = null
+        apps = emptyList()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val mov = moviendo
         if (mov != null) {
