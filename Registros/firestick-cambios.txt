@@ -129,3 +129,10 @@ VERIFICADO en el Fire Stick: la lista muestra "Mi PC · prendida" y "PC mari · 
 INSTALADA com.pachi.tv 1.29 en Fire Stick 192.168.100.68 y Chromecast -> Success
 CAMBIO    el menú lateral ya no muestra Buscar ni Juegos (los juegos siguen en "Todas las apps")
 VERIFICADO captura del menú en el Fire Stick
+
+--- 17/11/2026: Ziota 1.30, tema Vice City con vidrio ---
+INSTALADA com.pachi.tv 1.30 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    tema Vice City: fondo azul noche con atardecer violeta, hora rosa, clima durazno, selección cian, rayita rosa/violeta/cian
+CAMBIO    vidrio (como la app del celular) en el menú lateral, los menús, los botones redondos y la isla
+NUEVO     Ajustes -> "Tema: Vice City / Clásico" para volver al de antes
+VERIFICADO capturas del inicio y del menú lateral en el Fire Stick

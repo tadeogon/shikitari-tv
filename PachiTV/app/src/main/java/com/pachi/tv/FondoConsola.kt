@@ -42,6 +42,14 @@ class FondoConsola(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
+        if (Tema.vice) {
+            // Vice City: azul noche con un atardecer violeta y rosa que baja desde arriba.
+            canvas.drawColor(Tema.NOCHE)
+            pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.6f, intArrayOf(0xFF4C1658.toInt(), 0xFF2A1250.toInt(), Tema.NOCHE), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w, h * 0.6f, pincel)
+            pincel.shader = null
+            return
+        }
         canvas.drawColor(BASE)
         pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.52f, color, BASE, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h * 0.52f, pincel)

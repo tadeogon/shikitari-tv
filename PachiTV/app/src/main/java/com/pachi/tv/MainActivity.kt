@@ -265,6 +265,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Tema.cargar(this)
         primeraVez = savedInstanceState == null
         val pantalla = armarPantalla()
         setContentView(pantalla)
@@ -448,7 +449,7 @@ class MainActivity : Activity() {
     // ---------- Armado de la pantalla ----------
 
     private fun armarPantalla(): View {
-        val raiz = FrameLayout(this).apply { setBackgroundColor(0xFF0B0B0F.toInt()) }
+        val raiz = FrameLayout(this).apply { setBackgroundColor(if (Tema.vice) Tema.NOCHE else 0xFF0B0B0F.toInt()) }
         // Todo lo que queda atrás del menú lateral va junto, para poder difuminarlo cuando se abre.
         capa = FrameLayout(this)
         raiz.addView(capa, llenar())
@@ -498,7 +499,7 @@ class MainActivity : Activity() {
 
         // Marquita al borde: avisa que a la izquierda hay un menú.
         capa.addView(View(this).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, ARCOIRIS).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, Tema.rayita).apply {
                 cornerRadius = dp(3).toFloat()
             }
             alpha = 0.7f
@@ -534,7 +535,7 @@ class MainActivity : Activity() {
         val hora = TextClock(this).apply {
             format12Hour = "h:mm"
             format24Hour = "HH:mm"
-            setTextColor(Color.WHITE)
+            setTextColor(if (Tema.vice) Tema.ROSA else Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
             typeface = medium
             includeFontPadding = false
@@ -546,7 +547,7 @@ class MainActivity : Activity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         }
         climaAhora = TextView(this).apply {
-            setTextColor(Color.WHITE)
+            setTextColor(if (Tema.vice) Tema.DURAZNO else Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(0, dp(3), 0, 0)
         }
@@ -633,12 +634,8 @@ class MainActivity : Activity() {
         val caja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(10), dp(6), dp(8))
-            background = GradientDrawable().apply {
-                // Vidrio al estilo iOS: bien transparente donde el sistema puede difuminar lo de atrás.
-                setColor(if (hayDifuminado) 0x8C3A3A40.toInt() else 0xF52C2C2E.toInt())
-                cornerRadius = dp(20).toFloat()
-                setStroke(1, 0x33FFFFFF)
-            }
+            // Vidrio como el de la app del celular: bien transparente donde el sistema puede difuminar lo de atrás.
+            background = Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado))
             visibility = View.GONE
             elevation = dp(24).toFloat()
         }
@@ -760,12 +757,13 @@ class MainActivity : Activity() {
             setImageResource(icono)
             imageTintList = ColorStateList.valueOf(Color.WHITE)
         }
-        val circulo = GradientDrawable().apply {
+        val vidrio = Vidrio(0f, 0x1FFFFFFF, redondo = true)
+        val enfocado = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(0x33FFFFFF)
+            setColor(CREMA)
         }
         val boton = FrameLayout(this).apply {
-            background = circulo
+            background = vidrio
             isFocusable = true
             isClickable = true
             addView(imagen, FrameLayout.LayoutParams(dp(lado / 2), dp(lado / 2), Gravity.CENTER))
@@ -773,7 +771,7 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(dp(lado), dp(lado)).apply { setMargins(dp(margen), 0, dp(margen), 0) }
         }
         boton.setOnFocusChangeListener { _, foco ->
-            circulo.setColor(if (foco) CREMA else 0x33FFFFFF)
+            boton.background = if (foco) enfocado else vidrio
             imagen.imageTintList = ColorStateList.valueOf(if (foco) 0xFF111114.toInt() else Color.WHITE)
             if (foco) etiquetaRapida.text = titulo else if (botonesRapidos.none { it.isFocused } && botonesArriba.none { it.isFocused }) etiquetaRapida.text = ""
         }
@@ -1156,7 +1154,7 @@ class MainActivity : Activity() {
         if (titulo != null) {
             destino.addView(TextView(this).apply {
                 text = titulo
-                setTextColor(CREMA)
+                setTextColor(if (Tema.vice) Color.WHITE else CREMA)
                 alpha = 0.8f
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 typeface = medium
@@ -1281,7 +1279,7 @@ class MainActivity : Activity() {
         val color = colorDeMarca(imagen ?: return)
         if (color != colorDeFondo) {
             colorDeFondo = color
-            fondo.cambiarColor(color)
+            if (!Tema.vice) fondo.cambiarColor(color)
         }
     }
 
@@ -1573,6 +1571,10 @@ class MainActivity : Activity() {
                     abrirIntent(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
             },
+            "Tema: " + (if (Tema.vice) "Vice City" else "Clásico") to {
+                Tema.cambiar(this, !Tema.vice)
+                recreate()
+            },
             "Protector de pantalla: " + (if (protectorActivo()) "sí" else "no") to {
                 conPermiso { cambiarProtector(!protectorActivo()) }
             },
@@ -1727,11 +1729,7 @@ class MainActivity : Activity() {
         }
 
         dialogo.setContentView(ScrollView(this).apply {
-            background = GradientDrawable().apply {
-                setColor(if (hayDifuminado) 0x8C3A3A40.toInt() else 0xF52C2C2E.toInt())
-                cornerRadius = dp(20).toFloat()
-                setStroke(1, 0x33FFFFFF)
-            }
+            background = Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado))
             clipToOutline = true
             addView(caja)
         }, ViewGroup.LayoutParams(dp(264), ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -1819,10 +1817,10 @@ class MainActivity : Activity() {
     companion object {
         const val EXTRA_DESDE_HOME = "desde_home"
         private const val COLOR_NEUTRO = 0xFF26262C.toInt()
-        const val CREMA = 0xFFF3E9D2.toInt()
+        /** Color de selección: cian con el tema Vice, crema con el clásico. */
+        val CREMA: Int get() = Tema.acento
         private const val PEDIDO_BLUETOOTH = 8
         private const val SPOTIFY = "com.spotify.tv.android"
-        private val ARCOIRIS = intArrayOf(0xFF6CBE45.toInt(), 0xFFFFE600.toInt(), 0xFFEF3B2D.toInt(), 0xFF8E2A9E.toInt(), 0xFF1E9CE6.toInt())
         private const val ANCHO_CABECERA = 190
         private const val ALTO_CABECERA = 78
         private const val RECIENTES = "recientes"

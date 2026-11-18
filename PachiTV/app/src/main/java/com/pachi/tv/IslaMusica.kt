@@ -298,6 +298,10 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
     }
 
     private fun pintarFondo(foco: Boolean) {
+        if (Tema.vice && !foco) {
+            background = Vidrio(dp(19).toFloat(), 0xF00B0F2B.toInt(), redondo = true)
+            return
+        }
         background = GradientDrawable().apply {
             setColor(Color.BLACK)
             cornerRadius = dp(19).toFloat()
