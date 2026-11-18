@@ -5,7 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
+import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
@@ -53,58 +53,40 @@ class FondoConsola(context: Context) : View(context) {
         pincel.shader = null
     }
 
-    private val pincelSol = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pincelLinea = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
-    private val franjas = Path()
 
     /**
-     * Temas neón, estilo atardecer retro: cielo del color del tema, un sol con rayas a la derecha
-     * y una cuadrícula en el piso que se pierde en el horizonte. Son unas pocas líneas: no gasta memoria.
+     * Temas neón, estilo atardecer retro pero tranquilo: cielo del color del tema, un brillo apenas visible
+     * en el horizonte y una cuadrícula tenue en el piso que se desvanece hacia arriba. Nada compite con las apps.
      */
     private fun dibujarNeon(canvas: Canvas, w: Float, h: Float, e: Estilo) {
         canvas.drawColor(e.fondo)
-        pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.62f, intArrayOf(e.cielo, mezclar(e.cielo, e.fondo, 0.55f), e.fondo),
-            floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, w, h * 0.62f, pincel)
+        val arriba = mezclar(e.cielo, e.fondo, 0.3f)
+        pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.7f, intArrayOf(arriba, mezclar(arriba, e.fondo, 0.6f), e.fondo),
+            floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h * 0.7f, pincel)
+
+        // Brillo suave sobre el horizonte, en vez del sol.
+        val horizonte = h * 0.76f
+        val color = e.piso and 0x00FFFFFF
+        pincel.shader = RadialGradient(w / 2, horizonte, w * 0.42f, (color or 0x1F000000), color, Shader.TileMode.CLAMP)
+        canvas.save()
+        canvas.scale(1f, 0.22f, w / 2, horizonte)
+        canvas.drawCircle(w / 2, horizonte, w * 0.42f, pincel)
+        canvas.restore()
         pincel.shader = null
 
-        // Sol: entero arriba y cortado en franjas cada vez más finas abajo.
-        val d = w * 0.13f
-        val cx = w * 0.74f
-        // Debajo del clima y arriba de la primera fila.
-        val arriba = h * 0.16f
-        franjas.reset()
-        franjas.addRect(cx - d, arriba - 2f, cx + d, arriba + d * 0.5f, Path.Direction.CW)
-        var y = arriba + d * 0.5f
-        var barra = d * 0.075f
-        var hueco = d * 0.02f
-        while (y < arriba + d) {
-            y += hueco
-            franjas.addRect(cx - d, y, cx + d, y + barra, Path.Direction.CW)
-            y += barra
-            barra *= 0.8f
-            hueco *= 1.25f
-        }
-        pincelSol.shader = LinearGradient(0f, arriba, 0f, arriba + d, e.sol[0], e.sol[1], Shader.TileMode.CLAMP)
-        pincelSol.alpha = 0xD0
-        canvas.save()
-        canvas.clipPath(franjas)
-        canvas.drawCircle(cx, arriba + d / 2, d / 2, pincelSol)
-        canvas.restore()
-
-        // Piso: cuadrícula que se aclara hacia adelante y desaparece en el horizonte.
-        val horizonte = h * 0.66f
-        pincelLinea.shader = LinearGradient(0f, horizonte, 0f, h, e.piso and 0x00FFFFFF, (e.piso and 0x00FFFFFF) or 0x66000000,
-            Shader.TileMode.CLAMP)
-        for (k in 1..9) {
-            val t = k / 9f
+        // Piso: cuadrícula tenue que se aclara hacia adelante y desaparece en el horizonte.
+        pincelLinea.shader = LinearGradient(0f, horizonte, 0f, h, color, color or 0x2E000000, Shader.TileMode.CLAMP)
+        for (k in 1..7) {
+            val t = k / 7f
             val yy = horizonte + (h - horizonte) * t * t
             canvas.drawLine(0f, yy, w, yy, pincelLinea)
         }
         val fuga = horizonte - (h - horizonte) * 0.6f
         val proporcion = (horizonte - fuga) / (h - fuga)
-        for (j in -16..16) {
-            val abajo = w / 2 + j * w * 0.07f
+        for (j in -12..12) {
+            val abajo = w / 2 + j * w * 0.09f
             val enHorizonte = w / 2 + (abajo - w / 2) * proporcion
             canvas.drawLine(enHorizonte, horizonte, abajo, h, pincelLinea)
         }

@@ -9,9 +9,10 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.LinearGradient
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.Color
 import android.graphics.Outline
+import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -126,6 +127,7 @@ class MainActivity : Activity() {
     // Logos en alta calidad incluidos en la app: los que traen estas apps miden apenas 320x180.
     private val logosPropios = mapOf(
         "com.google.android.youtube.tv" to R.drawable.logo_youtube,
+        "com.amazon.firetv.youtube" to R.drawable.logo_youtube,
         "com.netflix.ninja" to R.drawable.logo_netflix,
         "com.wbd.stream" to R.drawable.logo_hbomax,
         "com.hbo.hbonow" to R.drawable.logo_hbomax,
@@ -135,6 +137,7 @@ class MainActivity : Activity() {
         "com.cbs.ca" to R.drawable.logo_paramount,
         "com.cbs.ott" to R.drawable.logo_paramount,
         "tv.twitch.android.app" to R.drawable.logo_twitch,
+        "tv.twitch.android.viewer" to R.drawable.logo_twitch,
         "com.kick.mobile" to R.drawable.logo_kick,
         "com.spotify.tv.android" to R.drawable.logo_spotify,
         "org.videolan.vlc" to R.drawable.logo_vlc,
@@ -145,6 +148,7 @@ class MainActivity : Activity() {
     // Los mismos logos sin fondo, para la cabecera.
     private val logosCabecera = mapOf(
         "com.google.android.youtube.tv" to R.drawable.hero_youtube,
+        "com.amazon.firetv.youtube" to R.drawable.hero_youtube,
         "com.netflix.ninja" to R.drawable.hero_netflix,
         "com.wbd.stream" to R.drawable.hero_hbomax,
         "com.hbo.hbonow" to R.drawable.hero_hbomax,
@@ -154,6 +158,7 @@ class MainActivity : Activity() {
         "com.cbs.ca" to R.drawable.hero_paramount,
         "com.cbs.ott" to R.drawable.hero_paramount,
         "tv.twitch.android.app" to R.drawable.hero_twitch,
+        "tv.twitch.android.viewer" to R.drawable.hero_twitch,
         "com.kick.mobile" to R.drawable.hero_kick,
         "com.spotify.tv.android" to R.drawable.hero_spotify,
         "org.videolan.vlc" to R.drawable.hero_vlc,
@@ -210,8 +215,7 @@ class MainActivity : Activity() {
     }
     private val fuenteNormal by lazy { fuenteDeMarca("Montserrat-Regular.ttf") }
     private val fuenteMedia by lazy { fuenteDeMarca("Montserrat-Medium.ttf") }
-    /** Letra alta y angosta de los temas neón: hora, títulos y nombre de la app. */
-    private val fuenteTitulo by lazy { fuenteDeMarca("BebasNeue-Regular.ttf") }
+    /** Temas neón: una sola letra (Montserrat) en toda la pantalla; la jerarquía la dan el tamaño y el grosor. */
     private val conMontserrat get() = formal || Tema.neon
 
     private fun fuenteDeMarca(archivo: String): Typeface? =
@@ -222,7 +226,7 @@ class MainActivity : Activity() {
         if (!conMontserrat) return
         if (v is TextView) {
             val actual = v.typeface
-            if (actual !== fuenteNormal && actual !== fuenteMedia && (actual !== fuenteTitulo || fuenteTitulo == null)) {
+            if (actual !== fuenteNormal && actual !== fuenteMedia) {
                 val nueva = if (actual === medium || actual?.isBold == true) fuenteMedia else fuenteNormal
                 if (nueva != null) v.typeface = nueva
             }
@@ -322,6 +326,7 @@ class MainActivity : Activity() {
         destacadaActual = null
         imagenDeFondo = null
         apps = emptyList()
+        recortes.clear()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -503,12 +508,12 @@ class MainActivity : Activity() {
 
         val info = armarInfo()
         capa.addView(info, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END).apply {
-            topMargin = dp(22)
+            topMargin = dp(24)
             marginEnd = dp(MARGEN)
         })
         relojIzquierda?.let { reloj ->
             capa.addView(reloj, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START).apply {
-                topMargin = dp(22)
+                topMargin = dp(24)
                 marginStart = dp(MARGEN)
             })
             // La hora queda a la misma altura que el clima y el logo de la derecha.
@@ -522,7 +527,7 @@ class MainActivity : Activity() {
             background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, Tema.rayita).apply {
                 cornerRadius = dp(3).toFloat()
             }
-            alpha = 0.7f
+            alpha = if (Tema.neon) 0.3f else 0.7f
         }, FrameLayout.LayoutParams(dp(4), dp(52), Gravity.START or Gravity.CENTER_VERTICAL).apply { marginStart = dp(8) })
 
         isla = IslaMusica(this) { focoInicial()?.requestFocus() }
@@ -531,7 +536,7 @@ class MainActivity : Activity() {
             pintarFondo()
         }
         capa.addView(isla, FrameLayout.LayoutParams(dp(IslaMusica.CHICA), dp(38), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-            topMargin = dp(14)
+            topMargin = dp(16)
         })
 
         velo = View(this).apply {
@@ -557,16 +562,9 @@ class MainActivity : Activity() {
             format24Hour = "HH:mm"
             setTextColor(Color.WHITE)
             includeFontPadding = false
-            if (Tema.neon && fuenteTitulo != null) {
-                // Temas neón: hora grande con letra alta y el degradado del tema.
-                typeface = fuenteTitulo
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 42f)
-                letterSpacing = 0.02f
-                conDegradado(this)
-            } else {
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-                typeface = medium
-            }
+            typeface = medium
+            // Temas neón: la hora se destaca por el tamaño, en blanco liso y con la misma letra que el resto.
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (Tema.neon) 30f else 26f)
         }
         val fecha = TextClock(this).apply {
             format12Hour = "EEEE d 'de' MMMM"
@@ -574,23 +572,31 @@ class MainActivity : Activity() {
             setTextColor(0xB3FFFFFF.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         }
+        // Arriba todo en blanco y gris: el único color de la pantalla es el del foco.
         climaAhora = TextView(this).apply {
-            setTextColor(if (Tema.neon) Tema.estilo.clima else Color.WHITE)
+            setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(0, dp(3), 0, 0)
+            if (Tema.neon) typeface = medium
         }
         climaDetalle = TextView(this).apply {
-            setTextColor(0x99FFFFFF.toInt())
+            setTextColor(if (Tema.neon) 0x8CFFFFFF.toInt() else 0x99FFFFFF.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
         }
+        val separador = if (Tema.neon) 0x40FFFFFF else 0x55FFFFFF
+        val altoSeparador = if (Tema.neon) 24 else 26
+        val aireSeparador = if (Tema.neon) 16 else 14
         // A la izquierda: la hora con la fecha al lado. A la derecha: el clima junto al logo.
         relojIzquierda = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             addView(hora)
-            addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) },
-                LinearLayout.LayoutParams(dp(1), dp(26)).apply { marginStart = dp(14); marginEnd = dp(14) })
-            addView(fecha.apply { setTextColor(0xB3FFFFFF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) })
+            addView(View(this@MainActivity).apply { setBackgroundColor(separador) },
+                LinearLayout.LayoutParams(dp(1), dp(altoSeparador)).apply { marginStart = dp(aireSeparador); marginEnd = dp(aireSeparador) })
+            addView(fecha.apply {
+                setTextColor(if (Tema.neon) 0x99FFFFFF.toInt() else 0xB3FFFFFF.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            })
         }
         val clima = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -610,24 +616,15 @@ class MainActivity : Activity() {
             // El logo queda centrado a la altura del clima.
             gravity = Gravity.CENTER_VERTICAL
             addView(clima)
-            addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) },
-                LinearLayout.LayoutParams(dp(1), dp(26)).apply { marginStart = dp(14); marginEnd = dp(14) })
+            addView(View(this@MainActivity).apply { setBackgroundColor(separador) },
+                LinearLayout.LayoutParams(dp(1), dp(altoSeparador)).apply { marginStart = dp(aireSeparador); marginEnd = dp(aireSeparador) })
+            // Temas neón: el logo va chico y a media luz, para que no le gane a la hora.
             addView(ImageView(this@MainActivity).apply {
                 setImageResource(R.drawable.logo_chico)
                 contentDescription = getString(R.string.app_name)
                 adjustViewBounds = true
-            }, LinearLayout.LayoutParams(dp(if (formal) 92 else 68), ViewGroup.LayoutParams.WRAP_CONTENT))
-        }
-    }
-
-    /** Pinta el texto con el degradado del tema (se rehace si cambia el ancho, por ejemplo al pasar el minuto). */
-    private fun conDegradado(tv: TextView) {
-        tv.addOnLayoutChangeListener { v, izq, _, der, _, izqAntes, _, derAntes, _ ->
-            val texto = v as TextView
-            if (der - izq != derAntes - izqAntes || texto.paint.shader == null) {
-                texto.paint.shader = LinearGradient(0f, 0f, (der - izq).toFloat(), 0f, Tema.degradado, null, Shader.TileMode.CLAMP)
-                texto.invalidate()
-            }
+                if (Tema.neon) alpha = 0.5f
+            }, LinearLayout.LayoutParams(dp(if (formal) 92 else if (Tema.neon) 40 else 68), ViewGroup.LayoutParams.WRAP_CONTENT))
         }
     }
 
@@ -651,14 +648,8 @@ class MainActivity : Activity() {
         val textos = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         nombreApp = TextView(this).apply {
             setTextColor(Color.WHITE)
-            if (Tema.neon && fuenteTitulo != null) {
-                typeface = fuenteTitulo
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 44f)
-                letterSpacing = 0.03f
-            } else {
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-                typeface = medium
-            }
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+            typeface = medium
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }
@@ -675,12 +666,26 @@ class MainActivity : Activity() {
 
     // ---------- Menú lateral ----------
 
+    private val vidrioPanel by lazy { Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado)) }
+
+    /**
+     * Equipos que no difuminan (Fire Stick): el vidrio lleva una foto borrosa de lo que tiene atrás.
+     * [fuente] es lo que se fotografía; [dondeEsta] da la posición de la pieza en la pantalla.
+     */
+    private fun esmerilar(vidrio: Vidrio, fuente: View, dondeEsta: () -> Point) {
+        if (!Tema.neon || hayDifuminado) return
+        vidrio.sinFoto = Tema.PANEL_SIN_FOTO
+        vidrio.foto = Tema.fotoBorrosa(fuente)
+        vidrio.posicion = dondeEsta
+        vidrio.invalidateSelf()
+    }
+
     private fun armarPanel(): LinearLayout {
         val caja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(10), dp(6), dp(8))
-            // Vidrio como el de la app del celular: bien transparente donde el sistema puede difuminar lo de atrás.
-            background = Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado))
+            // Vidrio como el de la app del celular: transparente, con lo de atrás difuminado.
+            background = vidrioPanel
             visibility = View.GONE
             elevation = dp(24).toFloat()
         }
@@ -960,6 +965,8 @@ class MainActivity : Activity() {
         // Mientras está abierto, el foco no puede escaparse a las tarjetas de atrás.
         contenido.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         itemsLaterales.forEach { pintarItem(it) }
+        // Posición sin contar el deslizamiento de entrada: la foto queda quieta detrás del panel.
+        esmerilar(vidrioPanel, capa) { Point(panel.left, panel.top) }
         velo.visibility = View.VISIBLE
         panel.visibility = View.VISIBLE
         val distancia = -dp(320).toFloat()
@@ -1122,6 +1129,8 @@ class MainActivity : Activity() {
                 if (lista.isEmpty()) {
                     nombreApp.text = cat.titulo
                     subtitulo.text = "Todavía no hay apps acá"
+                    nombreApp.visibility = View.VISIBLE
+                    subtitulo.visibility = View.VISIBLE
                 }
                 lista.chunked(columnas).forEachIndexed { i, parte ->
                     agregarFila(if (i == 0) cat.titulo else null, parte, cat.name, contenido)
@@ -1204,22 +1213,22 @@ class MainActivity : Activity() {
     private fun agregarFila(titulo: String?, lista: List<App>, contenedor: String, destino: LinearLayout, porFila: Int = columnas) {
         if (titulo != null) {
             destino.addView(TextView(this).apply {
-                if (Tema.neon && fuenteTitulo != null) {
-                    // Neón: título en mayúsculas, letra alta y separada.
+                if (Tema.neon) {
+                    // Neón: título chico, en mayúsculas, separado y en blanco suave. Las apps son lo importante.
                     text = titulo.uppercase()
-                    setTextColor(Color.WHITE)
-                    alpha = 0.9f
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
-                    letterSpacing = 0.12f
-                    typeface = fuenteTitulo
+                    setTextColor(0x99FFFFFF.toInt())
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                    letterSpacing = 0.2f
+                    typeface = medium
+                    setPadding(dp(MARGEN), dp(16), 0, 0)
                 } else {
                     text = titulo
                     setTextColor(CREMA)
                     alpha = 0.8f
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                     typeface = medium
+                    setPadding(dp(MARGEN), dp(10), 0, 0)
                 }
-                setPadding(dp(MARGEN), dp(10), 0, 0)
             })
         }
         val fila = LinearLayout(this).apply {
@@ -1258,14 +1267,12 @@ class MainActivity : Activity() {
             tag = "$contenedor|${app.pkg}"
             outlineProvider = bordesRedondos(radio)
             clipToOutline = true
-            val color = if (app.banner == null) colorDeMarca(app.icono) else colorDeBorde(app.banner)
             if (Tema.neon) {
-                // Temas neón: las tarjetas sin color propio (logos sueltos) son de vidrio azul noche,
-                // y todas llevan arriba el brillo, el borde y la línea de luz del vidrio.
-                if (color == COLOR_NEUTRO) background = Vidrio(radio, Tema.estilo.tarjeta) else setBackgroundColor(color)
+                // Temas neón: todas las tarjetas son del mismo vidrio; lo único que cambia es el logo.
+                background = Vidrio(radio, Tema.estilo.tarjeta)
                 foreground = Vidrio(radio, 0, grosorAnillo = dp(3).toFloat())
             } else {
-                setBackgroundColor(color)
+                setBackgroundColor(if (app.banner == null) colorDeMarca(app.icono) else colorDeBorde(app.banner))
                 // Vidrio: un brillo suave desde arriba y un borde finito, igual para todas las tarjetas.
                 foreground = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x24FFFFFF, 0x00FFFFFF, 0x00000000)).apply {
                     cornerRadius = radio
@@ -1274,16 +1281,19 @@ class MainActivity : Activity() {
             }
             if (contenedor == OCULTAS) alpha = 0.5f
         }
-        // Temas neón: los logos propios traen un fondo gris dibujado; se usa el mismo logo sin fondo sobre vidrio.
-        val logoSuelto = if (Tema.neon) logosCabecera[app.pkg] else null
+        // Temas neón: logo suelto sobre el vidrio. Los propios ya vienen sin fondo; a los banners se les saca
+        // el fondo liso que traen pintado. Si no se puede, la tarjeta muestra el ícono y el nombre.
+        val logoSuelto: Drawable? = if (!Tema.neon) null
+        else logosCabecera[app.pkg]?.let { getDrawable(it) }
+            ?: app.banner?.let { banner -> recorteDe(app.pkg, banner, ancho, ancho * 9 / 16)?.let { BitmapDrawable(resources, it) } }
+        val nombreAdentro = logoSuelto == null && (Tema.neon || app.banner == null)
         if (logoSuelto != null) {
-            tarjeta.background = Vidrio(radio, Tema.estilo.tarjeta)
             tarjeta.addView(ImageView(this).apply {
-                setImageResource(logoSuelto)
+                setImageDrawable(logoSuelto)
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 setPadding(ancho / 6, ancho * 9 / 16 / 4, ancho / 6, ancho * 9 / 16 / 4)
             }, llenar())
-        } else if (app.banner != null) {
+        } else if (app.banner != null && !Tema.neon) {
             tarjeta.addView(ImageView(this).apply {
                 setImageDrawable(app.banner)
                 scaleType = ImageView.ScaleType.FIT_XY
@@ -1305,7 +1315,7 @@ class MainActivity : Activity() {
 
         val nombre = TextView(this).apply {
             // Las tarjetas sin logo ya muestran el nombre adentro.
-            text = if (app.banner == null) "" else app.label
+            text = if (nombreAdentro) "" else app.label
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
@@ -1370,11 +1380,24 @@ class MainActivity : Activity() {
         val imagen = app.banner ?: app.icono
         imagenDeFondo = imagen
         pintarFondo()
-        val sinFondo = logosCabecera[app.pkg]
+        val propio = logosCabecera[app.pkg]?.let { getDrawable(it) }
+        // Copia propia: si la cabecera y la tarjeta comparten el mismo dibujo, se pelean por el tamaño y los
+        // íconos adaptables rehacen su máscara una y otra vez hasta llenar la memoria (pasó en el Fire Stick).
+        val grande = if (propio != null) null else try {
+            imagenGrande(app)
+        } catch (e: OutOfMemoryError) {
+            null
+        }
+        // Temas neón: al banner se le saca el fondo liso, igual que en las tarjetas, y queda el logo suelto.
+        val sinFondo = propio ?: if (Tema.neon && app.banner != null) {
+            recortarLogo(grande ?: app.banner, dp(ALTO_CABECERA) * 32 / 9, dp(ALTO_CABECERA) * 2)?.let { BitmapDrawable(resources, it) }
+        } else null
+        // Ziota muestra solo el logo; Solari deja el nombre al lado.
+        val conNombre = if (formal) View.VISIBLE else View.GONE
         val medidas = destacada.layoutParams
         if (sinFondo != null) {
             // Logo suelto sobre la franja de color, alineado abajo a la izquierda.
-            val logo = getDrawable(sinFondo)!!
+            val logo = sinFondo
             val escala = minOf(dp(ANCHO_CABECERA).toFloat() / logo.intrinsicWidth, dp(ALTO_CABECERA).toFloat() / logo.intrinsicHeight)
             medidas.width = (logo.intrinsicWidth * escala).toInt()
             medidas.height = (logo.intrinsicHeight * escala).toInt()
@@ -1387,24 +1410,19 @@ class MainActivity : Activity() {
         } else {
             medidas.width = dp(ALTO_CABECERA) * 16 / 9
             medidas.height = dp(ALTO_CABECERA)
-            // Copia propia: si la cabecera y la tarjeta comparten el mismo dibujo, se pelean por el tamaño y los
-            // íconos adaptables rehacen su máscara una y otra vez hasta llenar la memoria (pasó en el Fire Stick).
-            val grande = try {
-                imagenGrande(app)
-            } catch (e: OutOfMemoryError) {
-                null
-            }
             try {
                 destacada.setImageDrawable(grande ?: copiaDe(imagen))
             } catch (e: OutOfMemoryError) {
                 destacada.setImageDrawable(null) // mejor sin imagen que cerrar el launcher
             }
-            destacada.setBackgroundColor(if (app.banner == null) colorDeMarca(imagen) else colorDeBorde(imagen))
+            // Temas neón: el ícono va sobre el mismo vidrio que las tarjetas, no sobre un color.
+            if (Tema.neon && app.banner == null) destacada.background = Vidrio(dp(14).toFloat(), Tema.estilo.tarjeta)
+            else destacada.setBackgroundColor(if (app.banner == null) colorDeMarca(imagen) else colorDeBorde(imagen))
             destacada.clipToOutline = true
             val relleno = if (app.banner == null) dp(28) else 0
             destacada.setPadding(relleno, relleno, relleno, relleno)
-            nombreApp.visibility = View.VISIBLE
-            subtitulo.visibility = View.VISIBLE
+            nombreApp.visibility = conNombre
+            subtitulo.visibility = conNombre
         }
         destacada.layoutParams = medidas
         nombreApp.text = app.label
@@ -1465,6 +1483,97 @@ class MainActivity : Activity() {
             outline.setRoundRect(0, 0, view.width, view.height, radio)
         }
     }
+
+    /** Logos de las tarjetas ya recortados, por app (null: no se pudo y va con ícono y nombre). Se sueltan en onStop. */
+    private val recortes = HashMap<String, Bitmap?>()
+
+    private fun recorteDe(pkg: String, banner: Drawable, ancho: Int, alto: Int): Bitmap? {
+        if (recortes.containsKey(pkg)) return recortes[pkg]
+        return recortarLogo(banner, ancho, alto).also { recortes[pkg] = it }
+    }
+
+    /**
+     * Saca el fondo liso que muchas apps traen pintado en su banner (ClipBox en negro, por ejemplo) y deja
+     * el logo solo, recortado a su tamaño. Devuelve null si el fondo no es liso (una foto, un degradado) o si
+     * el logo que queda es oscuro y no se vería sobre el vidrio.
+     */
+    private fun recortarLogo(d: Drawable, ancho: Int, alto: Int): Bitmap? {
+        if (ancho < 8 || alto < 8) return null
+        val px = IntArray(ancho * alto)
+        try {
+            val bmp = aBitmap(d, ancho, alto)
+            bmp.getPixels(px, 0, ancho, 0, 0, ancho, alto)
+            bmp.recycle()
+        } catch (e: OutOfMemoryError) {
+            return null
+        }
+        // El fondo es el color que más se repite en el borde.
+        val borde = IntArray(2 * (ancho + alto))
+        var n = 0
+        for (x in 0 until ancho) {
+            borde[n++] = px[x]
+            borde[n++] = px[(alto - 1) * ancho + x]
+        }
+        for (y in 0 until alto) {
+            borde[n++] = px[y * ancho]
+            borde[n++] = px[y * ancho + ancho - 1]
+        }
+        val transparente = borde.count { Color.alpha(it) < 128 } > borde.size * 0.8f
+        var fondo = 0
+        if (!transparente) {
+            val cuenta = HashMap<Int, Int>()
+            for (p in borde) if (Color.alpha(p) >= 128) cuenta[p and 0xE0E0E0] = (cuenta[p and 0xE0E0E0] ?: 0) + 1
+            val grupo = cuenta.maxByOrNull { it.value }?.key ?: return null
+            var r = 0L; var g = 0L; var b = 0L; var k = 0
+            for (p in borde) if (Color.alpha(p) >= 128 && (p and 0xE0E0E0) == grupo) {
+                r += Color.red(p); g += Color.green(p); b += Color.blue(p); k++
+            }
+            fondo = Color.rgb((r / k).toInt(), (g / k).toInt(), (b / k).toInt())
+            // Fondo no liso: mejor no tocarlo.
+            if (borde.count { Color.alpha(it) >= 128 && distancia(it, fondo) < 48 } < borde.size * 0.85f) return null
+        }
+        val fr = Color.red(fondo); val fg = Color.green(fondo); val fb = Color.blue(fondo)
+        var izq = ancho; var der = -1; var arriba = alto; var abajo = -1
+        var luz = 0.0; var peso = 0.0
+        for (y in 0 until alto) for (x in 0 until ancho) {
+            val i = y * ancho + x
+            val p = px[i]
+            var a = Color.alpha(p) / 255f
+            var r = Color.red(p); var g = Color.green(p); var b = Color.blue(p)
+            if (!transparente) {
+                // Cuanto más se parece al fondo, más transparente; en los bordes del logo se le quita el tinte del fondo.
+                val f = ((distancia(p, fondo) - 40) / 80f).coerceIn(0f, 1f)
+                if (f in 0.05f..0.999f) {
+                    r = ((r - (1 - f) * fr) / f).toInt().coerceIn(0, 255)
+                    g = ((g - (1 - f) * fg) / f).toInt().coerceIn(0, 255)
+                    b = ((b - (1 - f) * fb) / f).toInt().coerceIn(0, 255)
+                }
+                a *= f
+            }
+            px[i] = Color.argb((a * 255).toInt(), r, g, b)
+            if (a > 0.15f) {
+                if (x < izq) izq = x
+                if (x > der) der = x
+                if (y < arriba) arriba = y
+                if (y > abajo) abajo = y
+                luz += a * (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+                peso += a
+            }
+        }
+        if (der < 0 || peso < ancho * alto * 0.02) return null
+        // Un logo oscuro (letras negras de un banner blanco) no se vería sobre el vidrio.
+        if (luz / peso < 0.3) return null
+        val w = der - izq + 1
+        val h = abajo - arriba + 1
+        return try {
+            Bitmap.createBitmap(px, arriba * ancho + izq, ancho, w, h, Bitmap.Config.ARGB_8888)
+        } catch (e: OutOfMemoryError) {
+            null
+        }
+    }
+
+    private fun distancia(a: Int, b: Int) =
+        Math.abs(Color.red(a) - Color.red(b)) + Math.abs(Color.green(a) - Color.green(b)) + Math.abs(Color.blue(a) - Color.blue(b))
 
     private fun aBitmap(d: Drawable, ancho: Int, alto: Int): Bitmap {
         val bmp = Bitmap.createBitmap(ancho, alto, Bitmap.Config.ARGB_8888)
@@ -1813,11 +1922,15 @@ class MainActivity : Activity() {
         }
 
         aplicarFuente(caja)
-        dialogo.setContentView(ScrollView(this).apply {
-            background = Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado))
+        val vidrio = Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado))
+        val marco = ScrollView(this).apply {
+            background = vidrio
             clipToOutline = true
             addView(caja)
-        }, ViewGroup.LayoutParams(dp(264), ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        // La foto es de toda la pantalla de atrás (con el menú lateral, si está abierto).
+        esmerilar(vidrio, capa.parent as View) { IntArray(2).let { l -> marco.getLocationOnScreen(l); Point(l[0], l[1]) } }
+        dialogo.setContentView(marco, ViewGroup.LayoutParams(dp(264), ViewGroup.LayoutParams.WRAP_CONTENT))
         dialogo.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setDimAmount(0.25f)

@@ -1,53 +1,52 @@
 package com.pachi.tv
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PixelFormat
+import android.graphics.Point
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
+import android.view.View
 
 /**
  * Temas de Ziota. Los tres "neón" (Vice City, Neon Sunset y Digital Pulse) comparten el mismo dibujo:
- * cielo, sol con rayas, cuadrícula en el piso, letras altas y un degradado como sello.
- * "Clásico" es el de siempre (casi negro con selección crema). Se cambia en Ajustes.
+ * cielo, un brillo suave en el horizonte y una cuadrícula tenue en el piso. El degradado del tema es el único
+ * color fuerte de la pantalla y solo marca lo enfocado. "Clásico" es el de siempre (casi negro con selección crema).
  */
 enum class Estilo(
     val nombre: String,
     val fondo: Int,
     val cielo: Int,
     val degradado: IntArray,
-    val sol: IntArray,
     val piso: Int,
-    val clima: Int,
-    val panel: Int,
     val tarjeta: Int,
 ) {
     VICE(
         "Vice City", 0xFF0B0F2B.toInt(), 0xFF3A1258.toInt(),
         intArrayOf(0xFF17A9E5.toInt(), 0xFF6263D9.toInt(), 0xFFE53D92.toInt(), 0xFFFD7742.toInt()),
-        intArrayOf(0xFFFFB86B.toInt(), 0xFFE53D92.toInt()),
-        0xFFE53D92.toInt(), 0xFFFFB86B.toInt(), 0xF512163A.toInt(), 0xE61C1F4D.toInt(),
+        0xFFE53D92.toInt(), 0xE61C1F4D.toInt(),
     ),
     SUNSET(
         "Neon Sunset", 0xFF0A0A12.toInt(), 0xFF4A0C2E.toInt(),
         intArrayOf(0xFFFF0F7B.toInt(), 0xFFFF5C00.toInt(), 0xFFFFD000.toInt(), 0xFFA8E000.toInt()),
-        intArrayOf(0xFFFFD000.toInt(), 0xFFFF0F7B.toInt()),
-        0xFFFF0F7B.toInt(), 0xFFFFD000.toInt(), 0xF51A0F1E.toInt(), 0xE6221426.toInt(),
+        0xFFFF0F7B.toInt(), 0xE6221426.toInt(),
     ),
     PULSE(
         "Digital Pulse", 0xFF0F172A.toInt(), 0xFF2E1065.toInt(),
         intArrayOf(0xFFDDD6FE.toInt(), 0xFFF472B6.toInt(), 0xFFC084FC.toInt()),
-        intArrayOf(0xFFF472B6.toInt(), 0xFF7C3AED.toInt()),
-        0xFFF472B6.toInt(), 0xFFDDD6FE.toInt(), 0xF51A1640.toInt(), 0xE6221B4A.toInt(),
+        0xFFF472B6.toInt(), 0xE6221B4A.toInt(),
     ),
     CLASICO(
         "Clásico", 0xFF0B0B0F.toInt(), 0xFF0B0B0F.toInt(),
         intArrayOf(0xFFF3E9D2.toInt(), 0xFFF3E9D2.toInt()),
-        intArrayOf(0, 0), 0, 0xFFFFFFFF.toInt(), 0xF52C2C2E.toInt(), 0xFF26262C.toInt(),
+        0, 0xFF26262C.toInt(),
     ),
 }
 
@@ -82,22 +81,77 @@ object Tema {
     val degradado get() = estilo.degradado
     val fondo get() = estilo.fondo
 
-    /** Color de selección sólido (fila del menú en el clásico, destellos de la isla). */
-    val acento get() = if (neon) estilo.degradado[0] else CREMA_CLASICA
+    /** Color de selección sólido (fila del menú en el clásico, destellos y barritas de la isla). En neón, blanco: el color queda para el foco. */
+    val acento get() = if (neon) 0xFFFFFFFF.toInt() else CREMA_CLASICA
 
-    /** Rayita del costado que avisa que hay un menú. */
-    val rayita get() = if (neon) estilo.degradado
+    /** Rayita del costado que avisa que hay un menú. En neón, blanca y lisa. */
+    val rayita get() = if (neon) intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt())
     else intArrayOf(0xFF6CBE45.toInt(), 0xFFFFE600.toInt(), 0xFFEF3B2D.toInt(), 0xFF8E2A9E.toInt(), 0xFF1E9CE6.toInt())
 
-    /** Relleno de los paneles de vidrio: más transparente donde el sistema puede difuminar lo de atrás. */
+    /**
+     * Relleno de los paneles (menú lateral y menús): en neón es vidrio oscuro sin color, como el de la app
+     * del celular, encima de lo de atrás difuminado (por el sistema o con [fotoBorrosa]).
+     */
     fun rellenoPanel(hayDifuminado: Boolean) = when {
-        hayDifuminado && neon -> (estilo.panel and 0x00FFFFFF) or 0x8C000000.toInt()
+        hayDifuminado && neon -> 0x52000000
+        neon -> 0x8C000000.toInt()
         hayDifuminado -> 0x8C3A3A40.toInt()
-        else -> estilo.panel
+        else -> 0xF52C2C2E.toInt()
     }
 
-    /** Relleno de la isla de música: el fondo del tema casi opaco. */
-    val rellenoIsla get() = (estilo.fondo and 0x00FFFFFF) or 0xF0000000.toInt()
+    /** Si no se pudo sacar la foto borrosa: vidrio oscuro casi tapado, para que no se lea lo de atrás. */
+    const val PANEL_SIN_FOTO = 0xF2101016.toInt()
+
+    /** Relleno de la isla de música: vidrio oscuro sin color. */
+    val rellenoIsla get() = 0x73000000
+
+    /** Cuánto se achica la foto de lo de atrás: más chica, más borrosa y más liviana. */
+    const val ESCALA_FOTO = 10
+
+    /**
+     * Vidrio esmerilado para equipos que no difuminan (Fire Stick): una foto muy chiquita de [v],
+     * borroneada, que el [Vidrio] estira detrás de su relleno. Pesa menos de 100 KB.
+     */
+    fun fotoBorrosa(v: View): Bitmap? = try {
+        if (v.width == 0 || v.height == 0) null
+        else Bitmap.createBitmap(maxOf(1, v.width / ESCALA_FOTO), maxOf(1, v.height / ESCALA_FOTO), Bitmap.Config.ARGB_8888).also { bmp ->
+            val lienzo = Canvas(bmp)
+            lienzo.scale(1f / ESCALA_FOTO, 1f / ESCALA_FOTO)
+            v.draw(lienzo)
+            desenfocar(bmp)
+        }
+    } catch (e: Throwable) {
+        null // una imagen que no se puede dibujar así, o falta de memoria: queda el vidrio tapado
+    }
+
+    /** Tres pasadas de promedio con los vecinos, a lo ancho y a lo alto. */
+    private fun desenfocar(bmp: Bitmap) {
+        val w = bmp.width
+        val h = bmp.height
+        val a = IntArray(w * h)
+        val b = IntArray(w * h)
+        bmp.getPixels(a, 0, w, 0, 0, w, h)
+        repeat(3) {
+            promediar(a, b, w, h, 1, w, 2)
+            promediar(b, a, h, w, w, 1, 2)
+        }
+        bmp.setPixels(a, 0, w, 0, 0, w, h)
+    }
+
+    /** Promedia cada punto con [r] vecinos para cada lado sobre las [lineas] de largo [largo]. */
+    private fun promediar(de: IntArray, a: IntArray, largo: Int, lineas: Int, paso: Int, salto: Int, r: Int) {
+        for (l in 0 until lineas) {
+            val base = l * salto
+            for (i in 0 until largo) {
+                var rr = 0; var gg = 0; var bb = 0; var n = 0
+                for (k in maxOf(0, i - r)..minOf(largo - 1, i + r)) {
+                    val p = de[base + k * paso]
+                    rr += (p shr 16) and 0xFF; gg += (p shr 8) and 0xFF; bb += p and 0xFF; n++
+                }
+                a[base + i * paso] = (0xFF shl 24) or ((rr / n) shl 16) or ((gg / n) shl 8) or (bb / n)
+            }
+        }
+    }
 }
 
 /**
@@ -118,6 +172,15 @@ class Vidrio(
             field = valor
             invalidateSelf()
         }
+    /**
+     * Vidrio esmerilado (ver [Tema.fotoBorrosa]): la foto borrosa de lo de atrás y dónde está esta pieza en la
+     * pantalla, sin contar las animaciones. Sin foto se usa [sinFoto] como relleno.
+     */
+    var foto: Bitmap? = null
+    var posicion: (() -> Point)? = null
+    var sinFoto: Int = relleno
+    private val pFoto = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val matriz = Matrix()
     private val pRelleno = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = relleno }
     private val pBrillo = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pBorde = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
@@ -131,7 +194,20 @@ class Vidrio(
         caja.set(bounds)
         val r = if (redondo) caja.height() / 2 else radio
         pBrillo.shader = LinearGradient(0f, caja.top, 0f, caja.bottom, 0x1CFFFFFF, 0x06FFFFFF, Shader.TileMode.CLAMP)
-        if (relleno != 0) canvas.drawRoundRect(caja, r, r, pRelleno)
+        val f = foto
+        val donde = posicion?.invoke()
+        if (f != null && donde != null) {
+            // La foto chiquita se estira al tamaño real y se corre para que coincida con lo que hay detrás.
+            matriz.setScale(Tema.ESCALA_FOTO.toFloat(), Tema.ESCALA_FOTO.toFloat())
+            matriz.postTranslate(-donde.x.toFloat(), -donde.y.toFloat())
+            pFoto.shader = BitmapShader(f, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(matriz) }
+            canvas.drawRoundRect(caja, r, r, pFoto)
+            pRelleno.color = relleno
+        } else {
+            pRelleno.color = sinFoto
+        }
+        pRelleno.alpha = Math.round(pRelleno.alpha * alfa / 255f)
+        if (pRelleno.alpha != 0) canvas.drawRoundRect(caja, r, r, pRelleno)
         canvas.drawRoundRect(caja, r, r, pBrillo)
         val colores = anillo
         val grosor = if (colores != null) grosorAnillo else grosorBorde
@@ -153,8 +229,10 @@ class Vidrio(
         }
     }
 
+    private var alfa = 255
+
     override fun setAlpha(alpha: Int) {
-        pRelleno.alpha = Math.round(android.graphics.Color.alpha(relleno) * alpha / 255f)
+        alfa = alpha
         invalidateSelf()
     }
 

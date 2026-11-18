@@ -166,3 +166,15 @@ INSTALADA com.pachi.tv 1.34 en Fire Stick 192.168.100.68 y Chromecast -> Success
 CAMBIO    la isla recuerda el último tema de apps de música y queda visible; OK manda "play" a la última app que sonó, y si en 3 s no arranca abre la app
 CAMBIO    clima en 12 sp y la isla abierta más angosta (240) para que el clima entre completo
 VERIFICADO Spotify inactivo (estado 0): OK en la isla lo retomó sin salir de Ziota; Spotify cerrado del todo: abrió Spotify solo; quedó en pausa al terminar
+
+--- 17/11/2026: Ziota 1.35, tema neón más prolijo ---
+INSTALADA com.pachi.tv 1.35 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    sin sol: queda un brillo apenas visible en el horizonte; la cuadrícula del piso más baja, más tenue y que se desvanece hacia arriba
+CAMBIO    una sola letra (Montserrat) en toda la pantalla; se saca Bebas Neue de la app. Hora en blanco liso, clima en blanco y gris, títulos chicos y separados al 60%
+CAMBIO    el degradado del tema queda solo en lo enfocado; rayita del costado, isla y barritas pasan a blanco/liso
+CAMBIO    todas las tarjetas del mismo vidrio: YouTube y Twitch del Fire Stick usan su logo sin fondo; a los banners con fondo liso (ClipBox) se les saca el fondo; si no se puede, ícono y nombre (Stremio)
+CAMBIO    la cabecera muestra solo el logo de la app, sin el nombre grande (pedido del usuario); logo TF chico y a media luz
+CAMBIO    menú del costado, menús emergentes e isla: vidrio oscuro sin el tono azul; en el Fire Stick (no difumina) llevan una foto chiquita y borrosa de lo de atrás (vidrio esmerilado, menos de 100 KB)
+PRUEBA    al probar con el control se abrieron sin querer YouTube y Netflix; se cerraron con am force-stop y se volvió a Ziota
+VERIFICADO capturas del inicio, del menú del costado y de "Prender PC" (solo revisa, no prende) en el Fire Stick; Ziota adelante ~107 MB
+NOTA      el Chromecast estaba dormido: instalado pero sin captura
