@@ -144,3 +144,9 @@ REINICIO  hecho por el usuario; después quedan 618 MB libres
 INSTALADA com.pachi.tv 1.31 en Fire Stick 192.168.100.68 y Chromecast -> Success
 CAMBIO    con otra app adelante Ziota suelta tarjetas, logos grandes y lista de apps; al volver las arma de nuevo
 MEDIDO    Ziota en segundo plano (Spotify adelante): 53 MB en vez de ~100 MB
+
+--- 17/11/2026: Ziota 1.32, tarjetas de vidrio ---
+INSTALADA com.pachi.tv 1.32 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    tema Vice: las tarjetas con logo propio (Netflix, Apple TV, Spotify, etc.) son de vidrio azul noche con el logo sin fondo; todas llevan brillo, borde y línea de luz
+NOTA      YouTube queda blanca: su logo trae ese fondo
+VERIFICADO captura del inicio en el Fire Stick; Ziota adelante usa 85 MB

@@ -1213,15 +1213,32 @@ class MainActivity : Activity() {
             tag = "$contenedor|${app.pkg}"
             outlineProvider = bordesRedondos(radio)
             clipToOutline = true
-            setBackgroundColor(if (app.banner == null) colorDeMarca(app.icono) else colorDeBorde(app.banner))
-            // Vidrio: un brillo suave desde arriba y un borde finito, igual para todas las tarjetas.
-            foreground = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x24FFFFFF, 0x00FFFFFF, 0x00000000)).apply {
-                cornerRadius = radio
-                setStroke(1, 0x2EFFFFFF)
+            val color = if (app.banner == null) colorDeMarca(app.icono) else colorDeBorde(app.banner)
+            if (Tema.vice) {
+                // Tema Vice: las tarjetas sin color propio (logos sueltos) son de vidrio azul noche,
+                // y todas llevan arriba el brillo, el borde y la línea de luz del vidrio.
+                if (color == COLOR_NEUTRO) background = Vidrio(radio, 0xE61C1F4D.toInt()) else setBackgroundColor(color)
+                foreground = Vidrio(radio, 0)
+            } else {
+                setBackgroundColor(color)
+                // Vidrio: un brillo suave desde arriba y un borde finito, igual para todas las tarjetas.
+                foreground = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x24FFFFFF, 0x00FFFFFF, 0x00000000)).apply {
+                    cornerRadius = radio
+                    setStroke(1, 0x2EFFFFFF)
+                }
             }
             if (contenedor == OCULTAS) alpha = 0.5f
         }
-        if (app.banner != null) {
+        // Tema Vice: los logos propios traen un fondo gris dibujado; se usa el mismo logo sin fondo sobre vidrio.
+        val logoSuelto = if (Tema.vice) logosCabecera[app.pkg] else null
+        if (logoSuelto != null) {
+            tarjeta.background = Vidrio(radio, 0xE61C1F4D.toInt())
+            tarjeta.addView(ImageView(this).apply {
+                setImageResource(logoSuelto)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding(ancho / 6, ancho * 9 / 16 / 4, ancho / 6, ancho * 9 / 16 / 4)
+            }, llenar())
+        } else if (app.banner != null) {
             tarjeta.addView(ImageView(this).apply {
                 setImageDrawable(app.banner)
                 scaleType = ImageView.ScaleType.FIT_XY
