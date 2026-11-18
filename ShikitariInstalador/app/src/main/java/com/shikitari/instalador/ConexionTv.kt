@@ -154,7 +154,16 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
      */
     fun abrirCanal(comando: String): io.github.muntashirakon.adb.AdbStream {
         asegurarConexion()
-        return openStream("exec:$comando")
+        // Con tope: si la conexión quedó colgada, abrir el canal podía esperar para siempre.
+        val tarea = Executors.newSingleThreadExecutor()
+        try {
+            return tarea.submit<io.github.muntashirakon.adb.AdbStream> { openStream("exec:$comando") }.get(10, TimeUnit.SECONDS)
+        } catch (e: java.util.concurrent.TimeoutException) {
+            alFallar?.invoke()
+            throw IOException("La TV no abrió el video.")
+        } finally {
+            tarea.shutdownNow()
+        }
     }
 
     /** Instala un APK enviándolo por la conexión (igual que "adb install"). */
@@ -208,11 +217,28 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     /** Conecta de nuevo aunque haya quedado abierta una conexión vieja, y recuerda a dónde para reconectar sola. */
     @Synchronized
     fun reconectar(host: String, puerto: Int): Boolean {
+        soltar()
+        // 1) ¿Hay algo escuchando en esa IP y puerto? Si la TV está apagada o cambió de puerto,
+        //    la librería se quedaba esperando minutos (o para siempre) y trababa todo lo demás.
         try {
-            disconnect()
-        } catch (_: Exception) {
+            java.net.Socket().use { it.connect(java.net.InetSocketAddress(host, puerto), 3000) }
+        } catch (e: Exception) {
+            return false
         }
-        val ok = connect(host, puerto)
+        // 2) Conectar, pero con tope de 20 s pase lo que pase (si no, se suelta y se sigue).
+        val tarea = Executors.newSingleThreadExecutor()
+        val futuro = tarea.submit<Boolean> { connect(host, puerto) }
+        val ok = try {
+            futuro.get(20, TimeUnit.SECONDS)
+        } catch (e: java.util.concurrent.ExecutionException) {
+            throw (e.cause as? Exception) ?: e // por ejemplo «pairing is required»: se explica arriba
+        } catch (e: Exception) {
+            soltar()
+            futuro.cancel(true)
+            false
+        } finally {
+            tarea.shutdownNow()
+        }
         if (ok) {
             ultimoHost = host
             ultimoPuerto = puerto

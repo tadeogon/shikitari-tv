@@ -208,8 +208,13 @@ class EstadoApp(contextoActividad: Context) {
     fun buscarTvs() {
         ejecutar("Buscando TVs en el Wi-Fi", requiereTv = false) {
             // Las nuevas se anuncian solas; Fire TV y las viejas (puerto 5555) hay que buscarlas una por una.
-            // (si una TV aparece de las dos formas, gana el puerto anunciado)
-            val halladas = BuscadorTvs.buscarViejas(contexto) + BuscadorTvs.buscar(contexto)
+            // (si una TV aparece de las dos formas, gana el 5555: no pide código)
+            val propias = try {
+                java.net.NetworkInterface.getNetworkInterfaces().toList()
+                    .flatMap { it.inetAddresses.toList() }.mapNotNull { it.hostAddress }.toSet()
+            } catch (e: Exception) { emptySet() }
+            // (el propio celular también se anuncia si tiene la depuración prendida: no es una TV)
+            val halladas = (BuscadorTvs.buscar(contexto) + BuscadorTvs.buscarViejas(contexto)).filterKeys { it !in propias }
             val guardadas = MisTvs.cargar(contexto).associateBy { it.ip }
             enUi { nuevas = halladas.filterKeys { it !in guardadas } }
             if (halladas.isEmpty()) {
@@ -229,18 +234,29 @@ class EstadoApp(contextoActividad: Context) {
      * lo busca en el Wi-Fi y prueba de nuevo. Al conectar, la TV queda guardada en "Mis TVs".
      * Se llama desde un hilo de fondo.
      */
-    private fun conectarA(hostGuardado: String, puertoGuardado: Int): String {
+    /**
+     * De a una conexión por vez (la del vigía y la que pedís vos hacen fila). Así, si tocás otra TV
+     * mientras se reconecta la anterior, la que elegiste vos se conecta última y queda.
+     */
+    private fun conectarA(hostGuardado: String, puertoGuardado: Int): String =
+        synchronized(candado) { conectarEnFila(hostGuardado, puertoGuardado) }
+
+    private fun conectarEnFila(hostGuardado: String, puertoGuardado: Int): String {
         if (hostGuardado.isBlank()) return "Escribí la IP de la TV."
         var host = hostGuardado
         var puerto = puertoGuardado
         var ok = puerto > 0 && intentar(host, puerto)
+        // Primero la puerta de siempre (5555, sin código): Fire TV y TVs viejas. Si está cerrada
+        // se sabe en un instante. Antes se probaba primero la «inalámbrica con código» que el Fire
+        // también anuncia, y como pide vincular, fallaba siempre y había que borrar la TV.
+        if (!ok && puerto != 5555) {
+            ok = intentar(host, 5555)
+            if (ok) puerto = 5555
+        }
         if (!ok) {
             val nuevo = BuscadorTvs.buscar(contexto)[host]
-            if (nuevo != null) {
+            if (nuevo != null && nuevo != puerto) {
                 puerto = nuevo
-                ok = intentar(host, puerto)
-            } else if (puerto == 0) {
-                puerto = 5555 // TVs viejas con ADB por red
                 ok = intentar(host, puerto)
             }
         }

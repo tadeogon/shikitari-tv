@@ -131,7 +131,12 @@ object BuscadorTvs {
         val base = propia.substringBeforeLast('.')
         val pool = java.util.concurrent.Executors.newFixedThreadPool(48)
         try {
-            val pedidos = (1..254).map { "$base.$it" }.filter { it != propia }.map { ip ->
+            // Las IP del propio celular no cuentan (si tiene la depuración prendida, también tiene el 5555).
+            val propias = try {
+                java.net.NetworkInterface.getNetworkInterfaces().toList()
+                    .flatMap { it.inetAddresses.toList() }.mapNotNull { it.hostAddress }.toSet()
+            } catch (e: Exception) { setOf(propia) }
+            val pedidos = (1..254).map { "$base.$it" }.filter { it != propia && it !in propias }.map { ip ->
                 pool.submit<String?> {
                     try {
                         java.net.Socket().use { it.connect(java.net.InetSocketAddress(ip, 5555), 400) }
