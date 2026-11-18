@@ -150,3 +150,12 @@ INSTALADA com.pachi.tv 1.32 en Fire Stick 192.168.100.68 y Chromecast -> Success
 CAMBIO    tema Vice: las tarjetas con logo propio (Netflix, Apple TV, Spotify, etc.) son de vidrio azul noche con el logo sin fondo; todas llevan brillo, borde y línea de luz
 NOTA      YouTube queda blanca: su logo trae ese fondo
 VERIFICADO captura del inicio en el Fire Stick; Ziota adelante usa 85 MB
+
+--- 17/11/2026: Ziota 1.33, temas neón ---
+DESCARGA  Bebas Neue (Google Fonts, licencia SIL OFL, 61 KB) con permiso del usuario -> PachiTV/app/src/main/assets/fuentes
+INSTALADA com.pachi.tv 1.33 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    temas Vice City / Neon Sunset / Digital Pulse / Clásico (Ajustes -> Tema, va pasando de uno a otro)
+CAMBIO    temas neón: sol con rayas, cuadrícula en el piso, hora en Bebas Neue con degradado, títulos en mayúsculas, textos en Montserrat
+CAMBIO    lo enfocado (tarjeta, fila del menú, botón, isla) se marca con un anillo del degradado
+NOTA      Solari (versión del trabajo) sigue arrancando en el tema clásico
+VERIFICADO capturas del inicio y del menú en el Fire Stick; Ziota adelante 105 MB, 543 MB libres

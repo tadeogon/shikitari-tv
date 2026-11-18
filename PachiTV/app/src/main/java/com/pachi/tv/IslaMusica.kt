@@ -298,8 +298,10 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
     }
 
     private fun pintarFondo(foco: Boolean) {
-        if (Tema.vice && !foco) {
-            background = Vidrio(dp(19).toFloat(), 0xF00B0F2B.toInt(), redondo = true)
+        if (Tema.neon) {
+            // Neón: vidrio oscuro; enfocada se enciende con un anillo del degradado.
+            background = Vidrio(dp(19).toFloat(), Tema.rellenoIsla, redondo = true, grosorAnillo = dp(2).toFloat(),
+                anillo = if (foco) Tema.degradado else null)
             return
         }
         background = GradientDrawable().apply {
@@ -313,7 +315,7 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
 
     companion object {
         const val CHICA = 92
-        const val GRANDE = 280 // más angosta: abierta no llega al clima de la derecha
+        const val GRANDE = 260 // angosta: abierta no llega al clima de la derecha
         private val ESTADOS_DE_PASO = setOf(
             PlaybackState.STATE_PAUSED,
             PlaybackState.STATE_BUFFERING,

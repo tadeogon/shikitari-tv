@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Rect
@@ -209,16 +210,19 @@ class MainActivity : Activity() {
     }
     private val fuenteNormal by lazy { fuenteDeMarca("Montserrat-Regular.ttf") }
     private val fuenteMedia by lazy { fuenteDeMarca("Montserrat-Medium.ttf") }
+    /** Letra alta y angosta de los temas neón: hora, títulos y nombre de la app. */
+    private val fuenteTitulo by lazy { fuenteDeMarca("BebasNeue-Regular.ttf") }
+    private val conMontserrat get() = formal || Tema.neon
 
     private fun fuenteDeMarca(archivo: String): Typeface? =
         try { Typeface.createFromAsset(assets, "fuentes/$archivo") } catch (e: Exception) { null }
 
     /** Recorre la pantalla y le pone la tipografía de la marca a cada texto que todavía no la tiene. */
     private fun aplicarFuente(v: View) {
-        if (!formal) return
+        if (!conMontserrat) return
         if (v is TextView) {
             val actual = v.typeface
-            if (actual !== fuenteNormal && actual !== fuenteMedia) {
+            if (actual !== fuenteNormal && actual !== fuenteMedia && (actual !== fuenteTitulo || fuenteTitulo == null)) {
                 val nueva = if (actual === medium || actual?.isBold == true) fuenteMedia else fuenteNormal
                 if (nueva != null) v.typeface = nueva
             }
@@ -265,11 +269,11 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Tema.cargar(this)
+        Tema.cargar(this, if (formal) Estilo.CLASICO else Estilo.VICE)
         primeraVez = savedInstanceState == null
         val pantalla = armarPantalla()
         setContentView(pantalla)
-        if (formal) pantalla.viewTreeObserver.addOnGlobalLayoutListener { aplicarFuente(pantalla) }
+        if (conMontserrat) pantalla.viewTreeObserver.addOnGlobalLayoutListener { aplicarFuente(pantalla) }
         recibirPcs(intent)
     }
 
@@ -465,7 +469,7 @@ class MainActivity : Activity() {
     // ---------- Armado de la pantalla ----------
 
     private fun armarPantalla(): View {
-        val raiz = FrameLayout(this).apply { setBackgroundColor(if (Tema.vice) Tema.NOCHE else 0xFF0B0B0F.toInt()) }
+        val raiz = FrameLayout(this).apply { setBackgroundColor(Tema.fondo) }
         // Todo lo que queda atrás del menú lateral va junto, para poder difuminarlo cuando se abre.
         capa = FrameLayout(this)
         raiz.addView(capa, llenar())
@@ -551,10 +555,18 @@ class MainActivity : Activity() {
         val hora = TextClock(this).apply {
             format12Hour = "h:mm"
             format24Hour = "HH:mm"
-            setTextColor(if (Tema.vice) Tema.ROSA else Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-            typeface = medium
+            setTextColor(Color.WHITE)
             includeFontPadding = false
+            if (Tema.neon && fuenteTitulo != null) {
+                // Temas neón: hora grande con letra alta y el degradado del tema.
+                typeface = fuenteTitulo
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 42f)
+                letterSpacing = 0.02f
+                conDegradado(this)
+            } else {
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+                typeface = medium
+            }
         }
         val fecha = TextClock(this).apply {
             format12Hour = "EEEE d 'de' MMMM"
@@ -563,7 +575,7 @@ class MainActivity : Activity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         }
         climaAhora = TextView(this).apply {
-            setTextColor(if (Tema.vice) Tema.DURAZNO else Color.WHITE)
+            setTextColor(if (Tema.neon) Tema.estilo.clima else Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(0, dp(3), 0, 0)
         }
@@ -586,8 +598,8 @@ class MainActivity : Activity() {
             // Con tope de ancho: un clima con texto largo no se mete debajo de la isla.
             addView(climaAhora.apply {
                 setPadding(0, 0, 0, 0)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                maxWidth = dp(200)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (Tema.neon) 13f else 14f)
+                maxWidth = dp(215)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
             })
@@ -605,6 +617,17 @@ class MainActivity : Activity() {
                 contentDescription = getString(R.string.app_name)
                 adjustViewBounds = true
             }, LinearLayout.LayoutParams(dp(if (formal) 92 else 68), ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+    }
+
+    /** Pinta el texto con el degradado del tema (se rehace si cambia el ancho, por ejemplo al pasar el minuto). */
+    private fun conDegradado(tv: TextView) {
+        tv.addOnLayoutChangeListener { v, izq, _, der, _, izqAntes, _, derAntes, _ ->
+            val texto = v as TextView
+            if (der - izq != derAntes - izqAntes || texto.paint.shader == null) {
+                texto.paint.shader = LinearGradient(0f, 0f, (der - izq).toFloat(), 0f, Tema.degradado, null, Shader.TileMode.CLAMP)
+                texto.invalidate()
+            }
         }
     }
 
@@ -628,8 +651,14 @@ class MainActivity : Activity() {
         val textos = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         nombreApp = TextView(this).apply {
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-            typeface = medium
+            if (Tema.neon && fuenteTitulo != null) {
+                typeface = fuenteTitulo
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 44f)
+                letterSpacing = 0.03f
+            } else {
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+                typeface = medium
+            }
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }
@@ -774,7 +803,9 @@ class MainActivity : Activity() {
             imageTintList = ColorStateList.valueOf(Color.WHITE)
         }
         val vidrio = Vidrio(0f, 0x1FFFFFFF, redondo = true)
-        val enfocado = GradientDrawable().apply {
+        // Neón: al enfocarlo el vidrio se enciende con un anillo del degradado. Clásico: círculo crema.
+        val enfocado: Drawable = if (Tema.neon) Vidrio(0f, 0x40FFFFFF, redondo = true, grosorAnillo = dp(2).toFloat(), anillo = Tema.degradado)
+        else GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(CREMA)
         }
@@ -788,7 +819,7 @@ class MainActivity : Activity() {
         }
         boton.setOnFocusChangeListener { _, foco ->
             boton.background = if (foco) enfocado else vidrio
-            imagen.imageTintList = ColorStateList.valueOf(if (foco) 0xFF111114.toInt() else Color.WHITE)
+            imagen.imageTintList = ColorStateList.valueOf(if (foco && !Tema.neon) 0xFF111114.toInt() else Color.WHITE)
             if (foco) etiquetaRapida.text = titulo else if (botonesRapidos.none { it.isFocused } && botonesArriba.none { it.isFocused }) etiquetaRapida.text = ""
         }
         boton.setOnClickListener { click() }
@@ -906,11 +937,15 @@ class MainActivity : Activity() {
     private fun pintarItem(item: ItemLateral) {
         val foco = item.vista.isFocused
         val actual = item.pagina == pagina
-        item.vista.background = if (foco || actual) GradientDrawable().apply {
-            setColor(if (foco) CREMA else 0x1FFFFFFF)
-            cornerRadius = dp(9).toFloat()
-        } else null
-        val color = if (foco) 0xFF111114.toInt() else Color.WHITE
+        item.vista.background = when {
+            foco && Tema.neon -> Vidrio(dp(9).toFloat(), 0x2EFFFFFF, grosorAnillo = dp(2).toFloat(), anillo = Tema.degradado)
+            foco || actual -> GradientDrawable().apply {
+                setColor(if (foco) CREMA else 0x1FFFFFFF)
+                cornerRadius = dp(9).toFloat()
+            }
+            else -> null
+        }
+        val color = if (foco && !Tema.neon) 0xFF111114.toInt() else Color.WHITE
         item.texto.setTextColor(color)
         item.icono.imageTintList = ColorStateList.valueOf(color)
     }
@@ -1169,11 +1204,21 @@ class MainActivity : Activity() {
     private fun agregarFila(titulo: String?, lista: List<App>, contenedor: String, destino: LinearLayout, porFila: Int = columnas) {
         if (titulo != null) {
             destino.addView(TextView(this).apply {
-                text = titulo
-                setTextColor(if (Tema.vice) Color.WHITE else CREMA)
-                alpha = 0.8f
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                typeface = medium
+                if (Tema.neon && fuenteTitulo != null) {
+                    // Neón: título en mayúsculas, letra alta y separada.
+                    text = titulo.uppercase()
+                    setTextColor(Color.WHITE)
+                    alpha = 0.9f
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
+                    letterSpacing = 0.12f
+                    typeface = fuenteTitulo
+                } else {
+                    text = titulo
+                    setTextColor(CREMA)
+                    alpha = 0.8f
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                    typeface = medium
+                }
                 setPadding(dp(MARGEN), dp(10), 0, 0)
             })
         }
@@ -1214,11 +1259,11 @@ class MainActivity : Activity() {
             outlineProvider = bordesRedondos(radio)
             clipToOutline = true
             val color = if (app.banner == null) colorDeMarca(app.icono) else colorDeBorde(app.banner)
-            if (Tema.vice) {
-                // Tema Vice: las tarjetas sin color propio (logos sueltos) son de vidrio azul noche,
+            if (Tema.neon) {
+                // Temas neón: las tarjetas sin color propio (logos sueltos) son de vidrio azul noche,
                 // y todas llevan arriba el brillo, el borde y la línea de luz del vidrio.
-                if (color == COLOR_NEUTRO) background = Vidrio(radio, 0xE61C1F4D.toInt()) else setBackgroundColor(color)
-                foreground = Vidrio(radio, 0)
+                if (color == COLOR_NEUTRO) background = Vidrio(radio, Tema.estilo.tarjeta) else setBackgroundColor(color)
+                foreground = Vidrio(radio, 0, grosorAnillo = dp(3).toFloat())
             } else {
                 setBackgroundColor(color)
                 // Vidrio: un brillo suave desde arriba y un borde finito, igual para todas las tarjetas.
@@ -1229,10 +1274,10 @@ class MainActivity : Activity() {
             }
             if (contenedor == OCULTAS) alpha = 0.5f
         }
-        // Tema Vice: los logos propios traen un fondo gris dibujado; se usa el mismo logo sin fondo sobre vidrio.
-        val logoSuelto = if (Tema.vice) logosCabecera[app.pkg] else null
+        // Temas neón: los logos propios traen un fondo gris dibujado; se usa el mismo logo sin fondo sobre vidrio.
+        val logoSuelto = if (Tema.neon) logosCabecera[app.pkg] else null
         if (logoSuelto != null) {
-            tarjeta.background = Vidrio(radio, 0xE61C1F4D.toInt())
+            tarjeta.background = Vidrio(radio, Tema.estilo.tarjeta)
             tarjeta.addView(ImageView(this).apply {
                 setImageResource(logoSuelto)
                 scaleType = ImageView.ScaleType.FIT_CENTER
@@ -1284,6 +1329,8 @@ class MainActivity : Activity() {
             nombre.text = "‹  ${app.label}  ›"
         }
         tarjeta.setOnFocusChangeListener { _, foco ->
+            // Neón: la tarjeta elegida se marca con un anillo del degradado.
+            (tarjeta.foreground as? Vidrio)?.anillo = if (foco) Tema.degradado else null
             escalar(tarjeta, if (foco) 1.1f else 1f, if (foco) dp(18).toFloat() else 0f)
             val alfa0 = nombre.alpha
             val destino = if (foco) 1f else 0f
@@ -1312,7 +1359,7 @@ class MainActivity : Activity() {
         val color = colorDeMarca(imagen ?: return)
         if (color != colorDeFondo) {
             colorDeFondo = color
-            if (!Tema.vice) fondo.cambiarColor(color)
+            if (!Tema.neon) fondo.cambiarColor(color)
         }
     }
 
@@ -1604,8 +1651,8 @@ class MainActivity : Activity() {
                     abrirIntent(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
             },
-            "Tema: " + (if (Tema.vice) "Vice City" else "Clásico") to {
-                Tema.cambiar(this, !Tema.vice)
+            "Tema: ${Tema.estilo.nombre}" to {
+                Tema.siguiente(this)
                 recreate()
             },
             "Protector de pantalla: " + (if (protectorActivo()) "sí" else "no") to {
@@ -1744,11 +1791,15 @@ class MainActivity : Activity() {
                 if (dibujo != null) addView(imagen, LinearLayout.LayoutParams(dp(16), dp(16)).apply { marginEnd = dp(10) })
                 addView(etiqueta)
                 setOnFocusChangeListener { v, foco ->
-                    v.background = if (foco) GradientDrawable().apply {
-                        setColor(CREMA)
-                        cornerRadius = dp(9).toFloat()
-                    } else null
-                    val color = if (foco) 0xFF111114.toInt() else Color.WHITE
+                    v.background = when {
+                        foco && Tema.neon -> Vidrio(dp(9).toFloat(), 0x2EFFFFFF, grosorAnillo = dp(2).toFloat(), anillo = Tema.degradado)
+                        foco -> GradientDrawable().apply {
+                            setColor(CREMA)
+                            cornerRadius = dp(9).toFloat()
+                        }
+                        else -> null
+                    }
+                    val color = if (foco && !Tema.neon) 0xFF111114.toInt() else Color.WHITE
                     etiqueta.setTextColor(color)
                     imagen.imageTintList = ColorStateList.valueOf(color)
                 }
@@ -1761,6 +1812,7 @@ class MainActivity : Activity() {
             caja.addView(opcion, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)))
         }
 
+        aplicarFuente(caja)
         dialogo.setContentView(ScrollView(this).apply {
             background = Vidrio(dp(20).toFloat(), Tema.rellenoPanel(hayDifuminado))
             clipToOutline = true

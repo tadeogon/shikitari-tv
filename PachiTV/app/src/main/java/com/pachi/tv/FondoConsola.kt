@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
@@ -42,18 +43,71 @@ class FondoConsola(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        if (Tema.vice) {
-            // Vice City: azul noche con un atardecer violeta y rosa que baja desde arriba.
-            canvas.drawColor(Tema.NOCHE)
-            pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.6f, intArrayOf(0xFF4C1658.toInt(), 0xFF2A1250.toInt(), Tema.NOCHE), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
-            canvas.drawRect(0f, 0f, w, h * 0.6f, pincel)
-            pincel.shader = null
+        if (Tema.neon) {
+            dibujarNeon(canvas, w, h, Tema.estilo)
             return
         }
         canvas.drawColor(BASE)
         pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.52f, color, BASE, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h * 0.52f, pincel)
         pincel.shader = null
+    }
+
+    private val pincelSol = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val pincelLinea = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
+    private val franjas = Path()
+
+    /**
+     * Temas neón, estilo atardecer retro: cielo del color del tema, un sol con rayas a la derecha
+     * y una cuadrícula en el piso que se pierde en el horizonte. Son unas pocas líneas: no gasta memoria.
+     */
+    private fun dibujarNeon(canvas: Canvas, w: Float, h: Float, e: Estilo) {
+        canvas.drawColor(e.fondo)
+        pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.62f, intArrayOf(e.cielo, mezclar(e.cielo, e.fondo, 0.55f), e.fondo),
+            floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h * 0.62f, pincel)
+        pincel.shader = null
+
+        // Sol: entero arriba y cortado en franjas cada vez más finas abajo.
+        val d = w * 0.13f
+        val cx = w * 0.74f
+        // Debajo del clima y arriba de la primera fila.
+        val arriba = h * 0.16f
+        franjas.reset()
+        franjas.addRect(cx - d, arriba - 2f, cx + d, arriba + d * 0.5f, Path.Direction.CW)
+        var y = arriba + d * 0.5f
+        var barra = d * 0.075f
+        var hueco = d * 0.02f
+        while (y < arriba + d) {
+            y += hueco
+            franjas.addRect(cx - d, y, cx + d, y + barra, Path.Direction.CW)
+            y += barra
+            barra *= 0.8f
+            hueco *= 1.25f
+        }
+        pincelSol.shader = LinearGradient(0f, arriba, 0f, arriba + d, e.sol[0], e.sol[1], Shader.TileMode.CLAMP)
+        pincelSol.alpha = 0xD0
+        canvas.save()
+        canvas.clipPath(franjas)
+        canvas.drawCircle(cx, arriba + d / 2, d / 2, pincelSol)
+        canvas.restore()
+
+        // Piso: cuadrícula que se aclara hacia adelante y desaparece en el horizonte.
+        val horizonte = h * 0.66f
+        pincelLinea.shader = LinearGradient(0f, horizonte, 0f, h, e.piso and 0x00FFFFFF, (e.piso and 0x00FFFFFF) or 0x66000000,
+            Shader.TileMode.CLAMP)
+        for (k in 1..9) {
+            val t = k / 9f
+            val yy = horizonte + (h - horizonte) * t * t
+            canvas.drawLine(0f, yy, w, yy, pincelLinea)
+        }
+        val fuga = horizonte - (h - horizonte) * 0.6f
+        val proporcion = (horizonte - fuga) / (h - fuga)
+        for (j in -16..16) {
+            val abajo = w / 2 + j * w * 0.07f
+            val enHorizonte = w / 2 + (abajo - w / 2) * proporcion
+            canvas.drawLine(enHorizonte, horizonte, abajo, h, pincelLinea)
+        }
     }
 
     private fun mezclar(a: Int, b: Int, t: Float) = Color.rgb(
