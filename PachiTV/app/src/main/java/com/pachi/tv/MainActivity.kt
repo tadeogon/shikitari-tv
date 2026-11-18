@@ -598,8 +598,8 @@ class MainActivity : Activity() {
             // Con tope de ancho: un clima con texto largo no se mete debajo de la isla.
             addView(climaAhora.apply {
                 setPadding(0, 0, 0, 0)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (Tema.neon) 13f else 14f)
-                maxWidth = dp(215)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (Tema.neon) 12f else 14f)
+                maxWidth = dp(220)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
             })

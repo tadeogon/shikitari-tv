@@ -159,3 +159,10 @@ CAMBIO    temas neón: sol con rayas, cuadrícula en el piso, hora en Bebas Neue
 CAMBIO    lo enfocado (tarjeta, fila del menú, botón, isla) se marca con un anillo del degradado
 NOTA      Solari (versión del trabajo) sigue arrancando en el tema clásico
 VERIFICADO capturas del inicio y del menú en el Fire Stick; Ziota adelante 105 MB, 543 MB libres
+
+--- 17/11/2026: Ziota 1.34, la isla ya no desaparece ---
+CAUSA     al rato de pausar, Spotify suelta la sesión de música (queda inactiva) y la isla se escondía; había que abrir Spotify
+INSTALADA com.pachi.tv 1.34 en Fire Stick 192.168.100.68 y Chromecast -> Success
+CAMBIO    la isla recuerda el último tema de apps de música y queda visible; OK manda "play" a la última app que sonó, y si en 3 s no arranca abre la app
+CAMBIO    clima en 12 sp y la isla abierta más angosta (240) para que el clima entre completo
+VERIFICADO Spotify inactivo (estado 0): OK en la isla lo retomó sin salir de Ziota; Spotify cerrado del todo: abrió Spotify solo; quedó en pausa al terminar

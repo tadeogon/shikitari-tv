@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
+import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -124,12 +125,12 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
             if (evento.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (codigo) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    controlador?.transportControls?.skipToPrevious()
+                    temaAnterior()
                     marcar(anterior)
                     true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    controlador?.transportControls?.skipToNext()
+                    temaSiguiente()
                     marcar(siguiente)
                     true
                 }
@@ -206,6 +207,10 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
             ?: datos?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
             ?: elegido?.let { nombreDeApp(it.packageName) }
         if (elegido == null || nombre.isNullOrBlank()) {
+            controlador = null
+            // Spotify suelta la música al rato de pausarla: la isla queda con el último tema, lista para seguir.
+            if (mostrarDormida()) return
+            dormida = false
             if (visibility != GONE) {
                 val teniaFoco = isFocused
                 visibility = GONE
@@ -214,6 +219,7 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
             }
             return
         }
+        dormida = false
         titulo.text = nombre
         artista.text = datos?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: datos?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST) ?: ""
         val imagen: Bitmap? = datos?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -221,6 +227,7 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
             ?: datos?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
         tapa.setImageBitmap(imagen)
         tapaActual = imagen
+        recordar(elegido.packageName, nombre, artista.text.toString())
         barras.sonando = elegido.playbackState?.state == PlaybackState.STATE_PLAYING
         pausa.setImageResource(if (barras.sonando) R.drawable.ic_pause else R.drawable.ic_play)
         if (visibility != VISIBLE) visibility = VISIBLE
@@ -237,26 +244,78 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
         "Música"
     }
 
+    // ---------- Último tema: la isla no desaparece cuando la app de música suelta la sesión ----------
+
+    private val guardado = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
+    private val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    /** Sin música activa, mostrando el último tema que sonó (OK lo retoma). */
+    private var dormida = false
+
+    private fun recordar(paquete: String, nombre: String, artistaTexto: String) {
+        if (paquete !in APPS_DE_MUSICA) return
+        if (guardado.getString("isla_titulo", null) == nombre && guardado.getString("isla_paquete", null) == paquete) return
+        guardado.edit().putString("isla_paquete", paquete).putString("isla_titulo", nombre).putString("isla_artista", artistaTexto).apply()
+    }
+
+    /** Muestra el último tema con el botón de play. false si no hay nada para recordar o la app ya no está. */
+    private fun mostrarDormida(): Boolean {
+        val paquete = guardado.getString("isla_paquete", null) ?: return false
+        val nombre = guardado.getString("isla_titulo", null) ?: return false
+        if (context.packageManager.getLaunchIntentForPackage(paquete) == null &&
+            context.packageManager.getLeanbackLaunchIntentForPackage(paquete) == null) return false
+        dormida = true
+        titulo.text = nombre
+        artista.text = guardado.getString("isla_artista", "") ?: ""
+        tapa.setImageBitmap(tapaActual)
+        barras.sonando = false
+        pausa.setImageResource(R.drawable.ic_play)
+        if (visibility != VISIBLE) visibility = VISIBLE
+        temaActual = nombre
+        return true
+    }
+
+    /**
+     * Retoma la música sin abrir la app: la tele le manda "play" a la última app que sonó
+     * (la misma tecla que el botón ⏯ del control). Si en un rato no arrancó, abre la app.
+     */
+    private fun retomar() {
+        tecla(KeyEvent.KEYCODE_MEDIA_PLAY)
+        val paquete = guardado.getString("isla_paquete", null) ?: return
+        postDelayed({
+            if (!sonando) {
+                val pm = context.packageManager
+                val abrir = pm.getLeanbackLaunchIntentForPackage(paquete) ?: pm.getLaunchIntentForPackage(paquete)
+                abrir?.let { context.startActivity(it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            }
+        }, 3000)
+    }
+
+    private fun tecla(codigo: Int) {
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, codigo))
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, codigo))
+    }
+
     var alCambiar: (() -> Unit)? = null
     var tapaActual: Bitmap? = null
         private set
     val tituloActual: CharSequence get() = titulo.text
     val artistaActual: CharSequence get() = artista.text
 
-    val hayMusica get() = controlador != null
+    val hayMusica get() = controlador != null || dormida
 
     val sonando get() = controlador?.playbackState?.state == PlaybackState.STATE_PLAYING
 
     fun temaAnterior() {
-        controlador?.transportControls?.skipToPrevious()
+        controlador?.transportControls?.skipToPrevious() ?: tecla(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
     }
 
     fun temaSiguiente() {
-        controlador?.transportControls?.skipToNext()
+        controlador?.transportControls?.skipToNext() ?: tecla(KeyEvent.KEYCODE_MEDIA_NEXT)
     }
 
     fun alternar() {
-        val c = controlador ?: return
+        val c = controlador ?: return retomar()
         if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause() else c.transportControls.play()
     }
 
@@ -314,8 +373,14 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
     companion object {
+        /** Solo estas se recuerdan al soltar la sesión: un video o una peli no tiene que quedar en la isla. */
+        private val APPS_DE_MUSICA = setOf(
+            "com.spotify.tv.android", "com.spotify.music", "com.google.android.youtube.tvmusic",
+            "com.amazon.mp3", "deezer.android.tv", "deezer.android.app", "com.aspiro.tidal",
+            "com.apple.android.music", "com.soundcloud.android",
+        )
         const val CHICA = 92
-        const val GRANDE = 260 // angosta: abierta no llega al clima de la derecha
+        const val GRANDE = 240 // angosta: abierta no llega al clima de la derecha
         private val ESTADOS_DE_PASO = setOf(
             PlaybackState.STATE_PAUSED,
             PlaybackState.STATE_BUFFERING,
