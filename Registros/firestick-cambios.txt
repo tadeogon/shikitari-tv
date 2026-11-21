@@ -178,3 +178,73 @@ CAMBIO    menú del costado, menús emergentes e isla: vidrio oscuro sin el tono
 PRUEBA    al probar con el control se abrieron sin querer YouTube y Netflix; se cerraron con am force-stop y se volvió a Ziota
 VERIFICADO capturas del inicio, del menú del costado y de "Prender PC" (solo revisa, no prende) en el Fire Stick; Ziota adelante ~107 MB
 NOTA      el Chromecast estaba dormido: instalado pero sin captura
+
+--- 19/11/2026: Ziota 1.36, Prender PC arreglado ---
+INSTALADA com.pachi.tv 1.36 solo en Fire Stick 192.168.100.68 -> Success (Chromecast pendiente hasta "actualizá todo")
+CAMBIO    "prendida" solo si un puerto de Windows acepta la conexión (antes contaba rechazos y el ping de Android, y mostraba prendida una PC apagada)
+CAMBIO    al elegir una PC la señal Wake on LAN se manda siempre, aunque figure prendida
+VERIFICADO lista en el Fire Stick: "Mi PC · prendida", "PC mari · apagada" (no se mandó ninguna señal de prueba)
+
+--- 19/11/2026: Ziota 1.37, pulido con la guía Impeccable ---
+INSTALADA com.pachi.tv 1.37 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+CAMBIO    logos sueltos (tarjetas y cabecera) medidos por superficie: Apple TV ya no se ve enorme al lado de Netflix
+CAMBIO    tarjetas con ícono y nombre: nombre centrado en hasta dos renglones (antes "Configuración de Amazon" se salía por la izquierda)
+CAMBIO    cabecera de apps sin logo recortable (Navegador, Aura, Amazon Kids): el ícono suelto, igual que en su tarjeta, en vez de un cuadro casi vacío o el banner con fondo
+CAMBIO    al bajar, la fila de arriba se desvanece bajo la cabecera en vez de cortarse de golpe
+CAMBIO    clima sin emoji (era el único dibujo de color arriba); isla y menú muestran una nota musical cuando la app no pasa la carátula
+PRUEBA    se abrió Aura (app.aura.home 7.8) solo para compararla, sin tocar sus ajustes; se volvió a Ziota
+VERIFICADO capturas de inicio, cabeceras, "Todas las apps" bajando y menú del costado en el Fire Stick; Ziota adelante 158 MB sin nada en swap (Aura: 121 MB + 18 MB en swap)
+
+--- 19/11/2026: Ziota 1.38, rediseño parte 1: Centro de Control ---
+INSTALADA com.pachi.tv 1.38 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+DISEÑO    rediseño con Impeccable: mezcla de "Reloj de estación" (hora grande, puntito de color) y el estilo tipo Aura (casi negro, vidrio, lo elegido en blanco); cada tema = un solo color. Ficha en PachiTV/PRODUCT.md
+CAMBIO    Centro de Control: desde la primera fila ↑ (↑ ↑ si está la isla). Izquierda: hora grande, fecha y notificaciones (OK abre, mantener OK descarta). Derecha: Wi-Fi, Bluetooth, volumen (↑ ↓), Prender PC, Dormir (15/30/60/90 min), Pantalla apagada, Sonido, Memoria, Ajustes y Protector. Atrás lo cierra
+CAMBIO    notificaciones: sin las fijas, los resúmenes ni las "recomendaciones" de Netflix
+PERMISO   nuevo: ACCESS_NETWORK_STATE (normal, sin ADB). Leer notificaciones usa el permiso que ya tenía la isla (cmd notification allow_listener com.pachi.tv/com.pachi.tv.MusicaListener)
+NOTA      "Entradas" y "Reposo" no van: el Fire Stick y el Chromecast no tienen entradas HDMI, y una app no puede poner la tele en reposo; en su lugar, Sonido y Protector
+VERIFICADO captura y foco con el control en el Fire Stick (↑ ↑ abre, ↓ va a Dormir, Atrás vuelve a la isla); Ziota 102 MB
+
+--- 19/11/2026: Ziota 1.39, rediseño parte 2: apps abiertas ---
+INSTALADA com.pachi.tv 1.39 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+CAMBIO    visor de apps abiertas: Inicio dos veces (o el módulo Memoria del Centro de Control). La última app grande, las anteriores apiladas a la izquierda; ← → se mueve, OK abre, ↑ cierra esa app, → llega a "Cerrar todo" con la memoria en uso y la liberada. Atrás vuelve sin abrir nada
+PERMISO   opcional, pendiente: appops set com.pachi.tv GET_USAGE_STATS allow (para ver todas las apps usadas; sin él muestra las abiertas desde Ziota). No se dio
+VERIFICADO Inicio x2 abre el visor, ← pasa a la anterior, Atrás vuelve a Ziota sin abrir apps (no se cerró ninguna app en la prueba)
+
+--- 19/11/2026: Ziota 1.40, rediseño parte 3: música en pantalla ---
+INSTALADA com.pachi.tv 1.40 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+CAMBIO    si suena música y no se toca el control por 10 s, el tema ocupa la pantalla: tapa (o una nota si la app no la manda), título grande, artista y app, barra de avance con el color del tema y la hora. OK pausa, ← → cambian de tema, cualquier otro botón vuelve. Cada minuto se corre unos puntos para no marcar la tele
+CAMBIO    apps abiertas: "Cerrar todo" centrado bajo su botón
+PRUEBA    Spotify sonó ~15 s para probar (cmd media_session dispatch play) y quedó en pausa (estado 2)
+VERIFICADO captura con Spotify sonando (con tapa) y ↓ volvió al inicio
+
+--- 19/11/2026: Ziota 1.41, rediseño parte 4: Ajustes que explican ---
+INSTALADA com.pachi.tv 1.41 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+CAMBIO    Ajustes nuevos en pantalla completa: a la izquierda ícono, título y la explicación de lo elegido; a la derecha la lista por secciones (Ziota, Apps, Esta tele, Sobre Ziota) con iconito de color y valor o interruptor. Arriba: "Pasar tu configuración a otra tele"
+CAMBIO    nuevos: Animaciones Normal/Rápida, Informes de problemas (Android/data/com.pachi.tv/files/informes.txt), guardar configuración (…/files/configuracion.json; se carga con el extra "configuracion"). Sale "Tarjetas grandes" (el pedido no quiere grilla grande/chica)
+NOTA      primer intento con la tele dormida; en el segundo se abrió YouTube sin querer (se cerró con am force-stop)
+VERIFICADO captura de Ajustes en el Fire Stick (foco en Tema, explicación a la izquierda); Atrás vuelve a Ziota
+
+--- 19/11/2026: Ziota 1.42, rediseño parte 5: la recomendación de hoy ---
+INSTALADA com.pachi.tv 1.42 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+CAMBIO    "Para hoy" abajo de Recientes: una serie por día de TVmaze (gratis, sin clave, solo series) con póster, nota, año, género, dónde se ve y resumen. OK abre esa app si está instalada
+CAMBIO    Ajustes > La recomendación de hoy: mostrar sí/no, género, nota mínima, años y "Buscar otra"
+NOTA      TVmaze trae los resúmenes en inglés; películas necesitarían una clave gratuita de TMDB
+VERIFICADO captura en el Fire Stick: "Crisis in Six Scenes", ★ 7.2, 2016, Comedia, Prime Video (no se apretó OK)
+
+--- 19/11/2026: Ziota 1.43, rediseño: inicio con el estilo nuevo ---
+INSTALADA com.pachi.tv 1.43 solo en Fire Stick 192.168.100.68 -> Success (Chromecast, instalador y git pendientes hasta "actualizá todo")
+CAMBIO    temas neón: fondo liso del tema (sin cuadrícula ni brillo), hora a 44 sp, lo enfocado con borde blanco y un puntito del color del tema (tarjetas, menú, isla y botones)
+PRUEBA    con música sonando apareció la música en pantalla y una → de la prueba pasó al tema siguiente en Spotify (sin querer)
+VERIFICADO captura del inicio con el fondo liso y la hora grande; falta ver el puntito en una tarjeta elegida
+
+--- 21/11/2026: Ziota 1.45, temas AMOLED + tarjetas nuevas ("actualizá todo") ---
+INSTALADA com.pachi.tv 1.45 en Fire Stick 192.168.100.68 -> Success
+CAMBIO    3 temas nuevos con foto de fondo sobre negro puro: Prisma (acento celeste), Seda negra (plateado) y Vino líquido (rosa). Prisma es el de Ziota por defecto; quien tenía un tema neón viejo pasa una sola vez a Prisma. Fotos en drawable-nodpi/fondo_*.jpg, cargadas en 16 bits
+CAMBIO    tarjetas de vidrio transparente; la elegida se levanta un poco y su sombra toma el color del tema (Android 9+)
+CAMBIO    apps sin logo propio (Stremio y otras con ícono adaptable) muestran su dibujo suelto, sin el cuadrado del ícono
+ARREGLO   Prime Video en Fire TV (com.amazon.firebat) usa su logo propio en vez del banner recortado
+INCLUYE   los cambios de la 1.44 de la otra sesión (optimización Chromecast, apps abiertas, receptor de actualización)
+INSTALADOR Shikitari Instalador 3.5 (lleva Ziota/Solari 1.45). APKs/ actualizados: Pachi-TV, Solari-TV, Shikitari-Instalador
+NOTA      el reinstalar apagó el servicio de accesibilidad de Ziota (botón Inicio); se volvió a prender por ADB (settings put secure enabled_accessibility_services com.pachi.tv/com.pachi.tv.InicioService)
+PENDIENTE Chromecast 192.168.100.2 rechazó ADB (10061) y 192.168.100.77 no responde: actualizarlos con el instalador del celular
+VERIFICADO captura del inicio en el Fire Stick con Prisma: fondo, tarjetas de vidrio, Stremio con dibujo suelto

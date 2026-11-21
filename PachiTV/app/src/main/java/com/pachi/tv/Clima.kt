@@ -13,6 +13,7 @@ import kotlin.math.roundToInt
 object Clima {
 
     private const val VIGENCIA_MS = 30 * 60 * 1000L
+    private val enCurso = java.util.concurrent.atomic.AtomicBoolean(false)
 
     fun guardado(contexto: Context): Pair<String, String>? {
         val p = contexto.getSharedPreferences("launcher", Context.MODE_PRIVATE)
@@ -24,7 +25,10 @@ object Clima {
     fun actualizar(contexto: Context, listo: (Pair<String, String>) -> Unit) {
         val p = contexto.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         if (System.currentTimeMillis() - p.getLong("clima_hora", 0) < VIGENCIA_MS) return
+        // Si ya hay una consulta en camino (salir y volver rápido), no se larga otra.
+        if (!enCurso.compareAndSet(false, true)) return
         Thread {
+          try {
             try {
                 val lugar = JSONObject(leer("https://ipwho.is/?fields=success,city,latitude,longitude"))
                 if (!lugar.optBoolean("success")) return@Thread
@@ -51,6 +55,9 @@ object Clima {
             } catch (e: Exception) {
                 // Sin internet o servicio caído: queda lo último guardado y se reintenta la próxima vez.
             }
+          } finally {
+            enCurso.set(false)
+          }
         }.start()
     }
 

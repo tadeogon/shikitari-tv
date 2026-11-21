@@ -20,17 +20,46 @@ import android.widget.Toast
  */
 class InicioService : AccessibilityService() {
 
+    /** La última pantalla de un launcher que se abrió (null = todavía no se vio ninguna). */
+    private var ultimaClase: String? = null
+    private var ultimoRescate = 0L
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         if (event.packageName !in LAUNCHERS) return
-        val clase = event.className ?: return
-        if (!clase.contains("Home") && !clase.contains("MainActivity")) return
-        startActivity(
-            Intent(this, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                .putExtra(MainActivity.EXTRA_DESDE_HOME, true),
-        )
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED) {
+            // Ya estás en la pantalla de Amazon (o de Google) y te movés por ella: pasa cuando quedó arriba
+            // y apretar Inicio otra vez no la cambia (ahí el sistema no avisa nada más). Se trae Ziota.
+            // En los ajustes de la tele (otra pantalla del mismo launcher) no se hace nada.
+            if (!esInicio(ultimaClase ?: "Home") || MainActivity.adelante) return
+            val ahora = android.os.SystemClock.uptimeMillis()
+            if (ahora - ultimoRescate < 1500) return
+            ultimoRescate = ahora
+            traerZiota(comoInicio = false)
+            return
+        }
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val clase = event.className?.toString() ?: return
+        // Los cambios de ventana que no son pantallas (menús, avisos) no cambian dónde estás.
+        if (clase.startsWith("android.widget") || clase.startsWith("android.app.Dialog")) return
+        ultimaClase = clase
+        if (!esInicio(clase)) return
+        traerZiota()
+        // Con dos Inicio seguidos, el Fire Stick a veces deja su pantalla arriba después de que Ziota se abrió.
+        // Se revisa un rato después y, si Ziota no quedó adelante, se la vuelve a traer.
+        principal.removeCallbacks(revisar)
+        principal.postDelayed(revisar, 900)
     }
+
+    private fun esInicio(clase: String) = clase.contains("Home") || clase.contains("MainActivity")
+
+    // El reintento va sin la marca de Inicio: si no, Ziota lo contaría como un segundo Inicio y abriría Apps abiertas.
+    private val revisar = Runnable { if (!MainActivity.adelante) traerZiota(comoInicio = false) }
+
+    private fun traerZiota(comoInicio: Boolean = true) = startActivity(
+        Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .putExtra(MainActivity.EXTRA_DESDE_HOME, comoInicio),
+    )
 
     private val principal = Handler(Looper.getMainLooper())
     @Volatile
@@ -77,6 +106,14 @@ class InicioService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        // Si la pantalla de Amazon ya está arriba, apretar Inicio no la cambia y no llega ningún aviso:
+        // por eso también se mira el botón. Se deja pasar (no se atrapa) y, si al rato Ziota no está
+        // adelante, se la trae.
+        if (event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_UP) {
+            principal.removeCallbacks(revisar)
+            principal.postDelayed(revisar, 900)
+            return false
+        }
         val destino = Botones.destino(this, event.keyCode) ?: return false
         // Se atrapan el "apretar" y el "soltar"; la app se abre al soltar, una sola vez.
         if (event.action == KeyEvent.ACTION_UP && event.repeatCount == 0) abrir(destino)

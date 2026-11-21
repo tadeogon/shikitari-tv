@@ -133,6 +133,7 @@ class MainActivity : Activity() {
         "com.hbo.hbonow" to R.drawable.logo_hbomax,
         "com.amazon.amazonvideo.livingroom" to R.drawable.logo_prime,
         "com.amazon.avod" to R.drawable.logo_prime,
+        "com.amazon.firebat" to R.drawable.logo_prime,
         "com.apple.atve.androidtv.appletv" to R.drawable.logo_appletv,
         "com.cbs.ca" to R.drawable.logo_paramount,
         "com.cbs.ott" to R.drawable.logo_paramount,
@@ -154,6 +155,8 @@ class MainActivity : Activity() {
         "com.hbo.hbonow" to R.drawable.hero_hbomax,
         "com.amazon.amazonvideo.livingroom" to R.drawable.hero_prime,
         "com.amazon.avod" to R.drawable.hero_prime,
+        // Prime Video en el Fire TV se llama así; sin esto mostraba el banner recortado.
+        "com.amazon.firebat" to R.drawable.hero_prime,
         "com.apple.atve.androidtv.appletv" to R.drawable.hero_appletv,
         "com.cbs.ca" to R.drawable.hero_paramount,
         "com.cbs.ott" to R.drawable.hero_paramount,
@@ -221,6 +224,9 @@ class MainActivity : Activity() {
     private fun fuenteDeMarca(archivo: String): Typeface? =
         try { Typeface.createFromAsset(assets, "fuentes/$archivo") } catch (e: Exception) { null }
 
+    /** Para pantallas que cambian su contenido solas (como Ajustes al entrar a una sección). */
+    fun ponerFuente(v: View) = aplicarFuente(v)
+
     /** Recorre la pantalla y le pone la tipografía de la marca a cada texto que todavía no la tiene. */
     private fun aplicarFuente(v: View) {
         if (!conMontserrat) return
@@ -273,19 +279,30 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Tema.cargar(this, if (formal) Estilo.CLASICO else Estilo.VICE)
+        Tema.cargar(this, if (formal) Estilo.CLASICO else Estilo.PRISMA)
         primeraVez = savedInstanceState == null
         val pantalla = armarPantalla()
         setContentView(pantalla)
         if (conMontserrat) pantalla.viewTreeObserver.addOnGlobalLayoutListener { aplicarFuente(pantalla) }
         recibirPcs(intent)
+        recibirConfiguracion(intent)
+        Informes.instalar(this)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         recibirPcs(intent)
+        recibirConfiguracion(intent)
         if (intent.getBooleanExtra(EXTRA_DESDE_HOME, false) || intent.hasCategory(Intent.CATEGORY_HOME)) {
+            // Inicio dos veces seguidas: apps abiertas.
+            val ahora = android.os.SystemClock.uptimeMillis()
+            // El Fire Stick avisa dos veces por cada Inicio (con ~50 ms de diferencia): eso es UNA sola
+            // apretada. Doble Inicio de verdad = dos avisos separados por más de 400 ms y menos de 1,5 s.
+            val pasaron = ahora - ultimoInicio
+            if (pasaron < 400) return
+            if (!formal && pasaron < 1500) abrirVisorAlVolver = true
+            ultimoInicio = ahora
             pagina = Pagina.INICIO
             enVitrina = true
             ultimaTarjeta = null
@@ -296,6 +313,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        adelante = true
         vitrina?.arrancarVideo()
         asegurarServicioInicio()
         cargarApps()
@@ -303,10 +321,19 @@ class MainActivity : Activity() {
         Clima.actualizar(this) { clima -> runOnUiThread { pintarClima(clima) } }
         isla.iniciar()
         if (!panelAbierto) mostrar(foco = ultimaTarjeta, arriba = ultimaTarjeta == null)
+        ultimaTecla = android.os.SystemClock.uptimeMillis()
+        quieto.removeCallbacksAndMessages(null)
+        quieto.postDelayed(vigilarQuieto, 2000)
+        if (abrirVisorAlVolver) {
+            abrirVisorAlVolver = false
+            contenido.postDelayed({ abrirVisor() }, 150)
+        }
     }
 
     override fun onPause() {
+        adelante = false
         espera.removeCallbacksAndMessages(null)
+        quieto.removeCallbacksAndMessages(null)
         isla.detener()
         vitrina?.pararVideo() // que el video no siga corriendo detrás de otra app
         super.onPause()
@@ -319,6 +346,10 @@ class MainActivity : Activity() {
      */
     override fun onStop() {
         super.onStop()
+        cerrarCentro()
+        cerrarVisor()
+        cerrarMusica()
+        cerrarAjustes()
         if (panelAbierto) cerrarPanel(enfocar = false)
         contenido.removeAllViews()
         resultados = null
@@ -330,6 +361,42 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        ultimaTecla = android.os.SystemClock.uptimeMillis()
+        // Música en pantalla: OK pausa, ← → cambian de tema; cualquier otro botón vuelve (al soltarlo, para que no haga nada más).
+        if (musica != null) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) isla.alternar()
+                KeyEvent.KEYCODE_DPAD_LEFT -> if (event.action == KeyEvent.ACTION_DOWN) isla.temaAnterior()
+                KeyEvent.KEYCODE_DPAD_RIGHT -> if (event.action == KeyEvent.ACTION_DOWN) isla.temaSiguiente()
+                else -> if (event.action == KeyEvent.ACTION_UP) cerrarMusica()
+            }
+            return true
+        }
+        // Ajustes: Atrás los cierra.
+        if (ajustes != null) {
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                // Desde una sección, Atrás vuelve a la lista de secciones; desde la lista, cierra.
+                if (event.action == KeyEvent.ACTION_UP && ajustes?.atras() != true) cerrarAjustes()
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
+        // Apps abiertas: Atrás lo cierra sin abrir nada (se comen las dos mitades de la tecla).
+        if (visor != null) {
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.action == KeyEvent.ACTION_UP) cerrarVisor()
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
+        // Centro de Control abierto: Atrás lo cierra; el resto lo manejan sus módulos.
+        if (centro != null) {
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.action == KeyEvent.ACTION_UP) cerrarCentro()
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
         val mov = moviendo
         if (mov != null) {
             // Modo mover: las flechas cambian el lugar; OK o Atrás terminan.
@@ -384,13 +451,18 @@ class MainActivity : Activity() {
                 abrirPanel()
                 return true
             }
-            // Desde cualquier tarjeta de la primera fila, subir llega a la isla; bajar desde ella vuelve.
-            if (!panelAbierto && event.keyCode == KeyEvent.KEYCODE_DPAD_UP && isla.visibility == View.VISIBLE && currentFocus?.tag is String) {
+            // Desde cualquier tarjeta de la primera fila, subir llega a la isla (o, sin música, al Centro de Control);
+            // subir otra vez desde la isla abre el Centro de Control.
+            if (!panelAbierto && event.keyCode == KeyEvent.KEYCODE_DPAD_UP && currentFocus?.tag is String) {
                 val siguiente = currentFocus?.focusSearch(View.FOCUS_UP)
                 if (siguiente == null || siguiente.tag !is String) {
-                    isla.requestFocus()
+                    if (isla.visibility == View.VISIBLE) isla.requestFocus() else if (!formal) abrirCentro() else return super.dispatchKeyEvent(event)
                     return true
                 }
+            }
+            if (!formal && currentFocus === isla && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                abrirCentro()
+                return true
             }
             if (currentFocus === isla && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (vitrinaActiva()) vitrina?.requestFocus()
@@ -399,6 +471,124 @@ class MainActivity : Activity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    // ---------- Centro de Control ----------
+
+    private var centro: CentroDeControl? = null
+    private var focoAntesDelCentro: View? = null
+
+    private fun abrirCentro() {
+        if (centro != null) return
+        focoAntesDelCentro = currentFocus
+        // Fondo difuminado: en Google TV lo hace el sistema; en el Fire Stick, una foto chiquita borrosa (una sola vez).
+        val foto = if (hayDifuminado) null else Tema.fotoBorrosa(capa)
+        if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), Shader.TileMode.CLAMP))
+        // Todo lo de atrás queda sin foco (si no, el control se va a la lista de apps, que no se ve).
+        capa.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        val c = CentroDeControl(this, foto, CentroDeControl.Acciones(
+            wifi = { abrirIntent(Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)) },
+            bluetooth = { abrirBluetooth() },
+            sonido = { abrirSalidaDeSonido() },
+            prenderPc = { menuPcs() },
+            cantidadPcs = { Pcs.lista(this).size },
+            optimizar = { cerrarCentro(); abrirVisor() },
+            ajustes = { menuAjustes() },
+            protector = { startActivity(Intent(this, ProtectorActivity::class.java)) },
+        ))
+        centro = c
+        (capa.parent as ViewGroup).addView(c, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        aplicarFuente(c)
+        c.alpha = 0f
+        c.animate().alpha(1f).setDuration(200).start()
+        c.post { c.enfocar() }
+    }
+
+    private fun cerrarCentro() {
+        val c = centro ?: return
+        centro = null
+        (c.parent as? ViewGroup)?.removeView(c)
+        if (hayDifuminado && !panelAbierto && dialogosAbiertos == 0) capa.setRenderEffect(null)
+        capa.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        (focoAntesDelCentro?.takeIf { it.isAttachedToWindow } ?: focoInicial())?.requestFocus()
+        focoAntesDelCentro = null
+    }
+
+    // ---------- Música en pantalla ----------
+
+    private var musica: MusicaEnPantalla? = null
+    private var ultimaTecla = 0L
+    private val quieto = Handler(Looper.getMainLooper())
+
+    /** Cada 2 segundos: si suena música y hace 10 segundos que no se toca el control, el tema ocupa la pantalla. */
+    private val vigilarQuieto = object : Runnable {
+        override fun run() {
+            val libre = musica == null && centro == null && visor == null && ajustes == null && !panelAbierto && dialogosAbiertos == 0 && moviendo == null
+            if (!formal && libre && isla.sonando && hasWindowFocus() && android.os.SystemClock.uptimeMillis() - ultimaTecla >= 10_000) mostrarMusica()
+            quieto.postDelayed(this, 2000)
+        }
+    }
+
+    private fun mostrarMusica() {
+        val m = MusicaEnPantalla(this, isla)
+        musica = m
+        (capa.parent as ViewGroup).addView(m, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        aplicarFuente(m)
+        m.alpha = 0f
+        m.animate().alpha(1f).setDuration(600).start()
+    }
+
+    private fun cerrarMusica() {
+        val m = musica ?: return
+        musica = null
+        (m.parent as? ViewGroup)?.removeView(m)
+    }
+
+    // ---------- Apps abiertas ----------
+
+    private var visor: AppsAbiertas? = null
+    private var ultimoInicio = 0L
+    private var abrirVisorAlVolver = false
+
+    private fun abrirVisor() {
+        if (visor != null || centro != null) return
+        if (panelAbierto) cerrarPanel(enfocar = false)
+        val foto = if (hayDifuminado) null else Tema.fotoBorrosa(capa)
+        if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), Shader.TileMode.CLAMP))
+        capa.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        val pm = packageManager
+        val v = AppsAbiertas(this, foto, AppsAbiertas.Datos(
+            recientes = leerLista(RECIENTES),
+            nombre = { pkg -> try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (e: Exception) { pkg } },
+            icono = { pkg -> try { pm.getApplicationIcon(pkg) } catch (e: Exception) { null } },
+            logo = { pkg -> logoGrande(pkg) },
+            abrir = { pkg -> cerrarVisor(); abrir(pkg) },
+            musica = isla.appActual,
+        ))
+        visor = v
+        (capa.parent as ViewGroup).addView(v, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        aplicarFuente(v)
+        v.alpha = 0f
+        v.animate().alpha(1f).setDuration(200).start()
+        v.requestFocus()
+    }
+
+    private fun cerrarVisor() {
+        val v = visor ?: return
+        visor = null
+        (v.parent as? ViewGroup)?.removeView(v)
+        if (hayDifuminado && !panelAbierto && dialogosAbiertos == 0 && centro == null) capa.setRenderEffect(null)
+        capa.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        focoInicial()?.requestFocus()
+    }
+
+    /** Logo de una app para mostrar grande: el propio sin fondo, el banner recortado o el ícono. */
+    private fun logoGrande(pkg: String): Drawable? = try {
+        logosCabecera[pkg]?.let { getDrawable(it) }
+            ?: packageManager.getApplicationBanner(pkg)?.let { b -> recortarLogo(b, dp(ALTO_CABECERA) * 32 / 9, dp(ALTO_CABECERA) * 2)?.let { BitmapDrawable(resources, it) } }
+            ?: packageManager.getApplicationIcon(pkg)
+    } catch (e: Exception) {
+        null
     }
 
     private fun esPrimeraDeFila(v: View?): Boolean {
@@ -451,6 +641,32 @@ class MainActivity : Activity() {
         return 1 + (s + 1) * u * u * u + s * u * u
     }
 
+    /** AMOLED: la tarjeta elegida sube un poco y su sombra toma el color del tema (Android 9 en adelante). */
+    private fun levantar(v: View, foco: Boolean) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            v.outlineSpotShadowColor = if (foco) Tema.color else Color.BLACK
+            v.outlineAmbientShadowColor = if (foco) Tema.color else Color.BLACK
+        }
+        val y0 = v.translationY
+        val destino = if (foco) -dp(6).toFloat() else 0f
+        animar(v, 240, ::salidaSuave) { c -> v.translationY = y0 + (destino - y0) * c }
+    }
+
+    /** El dibujo del ícono sin su cuadrado de fondo: en los íconos adaptables, solo la capa de adelante. */
+    private fun simboloSuelto(icono: Drawable, lado: Int): Drawable {
+        if (Build.VERSION.SDK_INT < 26 || icono !is android.graphics.drawable.AdaptiveIconDrawable) return icono
+        val frente = icono.foreground ?: return icono
+        return try {
+            val bmp = Bitmap.createBitmap(lado, lado, Bitmap.Config.ARGB_8888)
+            // La capa mide 108 y lo visible son los 72 del medio: se agranda 1,5 veces y se centra.
+            frente.setBounds(-lado / 4, -lado / 4, lado + lado / 4, lado + lado / 4)
+            frente.draw(Canvas(bmp))
+            BitmapDrawable(resources, bmp)
+        } catch (e: Exception) {
+            icono
+        }
+    }
+
     private fun escalar(v: View, destino: Float, elevacion: Float) {
         val escala0 = v.scaleX
         val z0 = v.translationZ
@@ -501,6 +717,11 @@ class MainActivity : Activity() {
             }
         }.apply {
             isVerticalScrollBarEnabled = false
+            // Temas neón: al bajar, la fila de arriba se desvanece bajo la cabecera en vez de quedar cortada de golpe.
+            if (Tema.neon) {
+                isVerticalFadingEdgeEnabled = true
+                setFadingEdgeLength(dp(40))
+            }
             addView(contenido)
         }
         columna.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -532,6 +753,7 @@ class MainActivity : Activity() {
 
         isla = IslaMusica(this) { focoInicial()?.requestFocus() }
         isla.alCambiar = {
+            musica?.let { m -> if (isla.hayMusica) m.refrescar() else cerrarMusica() }
             if (panelAbierto) pintarMusicaMenu()
             pintarFondo()
         }
@@ -564,7 +786,7 @@ class MainActivity : Activity() {
             includeFontPadding = false
             typeface = medium
             // Temas neón: la hora se destaca por el tamaño, en blanco liso y con la misma letra que el resto.
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (Tema.neon) 30f else 26f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (Tema.neon) 44f else 26f)
         }
         val fecha = TextClock(this).apply {
             format12Hour = "EEEE d 'de' MMMM"
@@ -629,7 +851,8 @@ class MainActivity : Activity() {
     }
 
     private fun pintarClima(clima: Pair<String, String>) {
-        climaAhora.text = clima.first
+        // Temas neón: sin el emoji del tiempo (era el único dibujo de colores arriba); el texto ya dice cómo está.
+        climaAhora.text = if (Tema.neon) clima.first.dropWhile { !it.isDigit() && it != '-' }.trim().ifBlank { clima.first } else clima.first
         climaDetalle.text = clima.second
     }
 
@@ -781,7 +1004,7 @@ class MainActivity : Activity() {
         botonesMusica.forEach { it.visibility = visible }
         iconoPausaMenu?.setImageResource(if (isla.sonando) R.drawable.ic_pause else R.drawable.ic_play)
         filaMusica.visibility = visible
-        tapaMenu.setImageBitmap(isla.tapaActual)
+        ponerTapa(tapaMenu, isla.tapaActual, dp(10))
         temaMenu.text = isla.tituloActual
         artistaMenu.text = isla.artistaActual
         artistaMenu.visibility = if (isla.artistaActual.isBlank()) View.GONE else View.VISIBLE
@@ -1112,6 +1335,7 @@ class MainActivity : Activity() {
                 val porPkg = visibles().associateBy { it.pkg }
                 val recientes = leerLista(RECIENTES).mapNotNull { porPkg[it] }.filter { it !in favs }
                 if (recientes.isNotEmpty()) agregarFila("Recientes", recientes, RECIENTES, contenido, columnas + 1)
+                agregarRecomendacion()
                 if (favs.isEmpty() && recientes.isEmpty()) agregarFila("Apps", visibles(), BUSQUEDA, contenido)
             }
             Pagina.TODAS -> {
@@ -1131,6 +1355,13 @@ class MainActivity : Activity() {
                     subtitulo.text = "Todavía no hay apps acá"
                     nombreApp.visibility = View.VISIBLE
                     subtitulo.visibility = View.VISIBLE
+                    // Algo que se pueda elegir con el control: si no, el foco queda en ningún lado.
+                    contenido.addView(botonVolverAInicio(), LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, dp(48),
+                    ).apply {
+                        marginStart = dp(MARGEN)
+                        topMargin = dp(12)
+                    })
                 }
                 lista.chunked(columnas).forEachIndexed { i, parte ->
                     agregarFila(if (i == 0) cat.titulo else null, parte, cat.name, contenido)
@@ -1174,7 +1405,9 @@ class MainActivity : Activity() {
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
                     busqueda = s?.toString().orEmpty()
-                    pintarResultados()
+                    // Se espera un ratito a que termine de escribir: redibujar todo por cada letra traba el teclado.
+                    espera.removeCallbacks(redibujarBusqueda)
+                    espera.postDelayed(redibujarBusqueda, 250)
                 }
             })
         }
@@ -1192,13 +1425,58 @@ class MainActivity : Activity() {
         pintarResultados()
     }
 
+    private val redibujarBusqueda = Runnable { if (pagina == Pagina.BUSCAR) pintarResultados() }
+
     private fun pintarResultados() {
         val caja = resultados ?: return
         caja.removeAllViews()
         val texto = busqueda.trim()
         if (texto.isEmpty()) return
         val lista = visibles().filter { it.label.contains(texto, ignoreCase = true) }
+        if (lista.isEmpty()) {
+            caja.addView(TextView(this).apply {
+                text = "No encontramos ninguna app con «$texto»"
+                setTextColor(0xB3FFFFFF.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                marginStart = dp(MARGEN)
+                topMargin = dp(12)
+            })
+            aplicarFuente(caja)
+            return
+        }
         lista.chunked(columnas).forEach { agregarFila(null, it, BUSQUEDA, caja) }
+    }
+
+    private fun botonVolverAInicio(): View = TextView(this).apply {
+        text = "Volver a Inicio"
+        tag = "volver_inicio"
+        setTextColor(Color.WHITE)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+        gravity = Gravity.CENTER
+        setPadding(dp(26), 0, dp(26), 0)
+        isFocusable = true
+        isClickable = true
+        val reposo = GradientDrawable().apply {
+            setColor(0x22FFFFFF)
+            cornerRadius = dp(24).toFloat()
+        }
+        background = reposo
+        setOnFocusChangeListener { v, foco ->
+            v.background = when {
+                foco && Tema.neon -> Vidrio(dp(24).toFloat(), 0x2EFFFFFF, grosorAnillo = dp(2).toFloat(), anillo = Tema.degradado)
+                foco -> GradientDrawable().apply {
+                    setColor(CREMA)
+                    cornerRadius = dp(24).toFloat()
+                }
+                else -> reposo
+            }
+            setTextColor(if (foco && !Tema.neon) 0xFF111114.toInt() else Color.WHITE)
+        }
+        setOnClickListener {
+            pagina = Pagina.INICIO
+            mostrar(arriba = true)
+        }
     }
 
     private fun buscarPrimera(grupo: ViewGroup): View? {
@@ -1209,6 +1487,90 @@ class MainActivity : Activity() {
         }
         return null
     }
+
+    /** La recomendación de hoy, abajo de Recientes. Si todavía no se buscó, la busca y redibuja al llegar. */
+    private fun agregarRecomendacion() {
+        if (formal || !Recomendacion.activa(this)) return
+        val s = Recomendacion.guardada(this)
+        if (s == null) {
+            Recomendacion.buscar(this) { if (pagina == Pagina.INICIO && !panelAbierto && Recomendacion.guardada(this) != null) mostrar(foco = ultimaTarjeta) }
+            return
+        }
+        contenido.addView(TextView(this).apply {
+            text = "PARA HOY"
+            setTextColor(0x99FFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            letterSpacing = 0.2f
+            typeface = medium
+            setPadding(dp(MARGEN), dp(16), 0, 0)
+        })
+        val radio = dp(14).toFloat()
+        val tarjeta = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            isFocusable = true
+            isClickable = true
+            tag = "reco|hoy"
+            setPadding(dp(12), dp(12), dp(24), dp(12))
+            background = Vidrio(radio, Tema.estilo.tarjeta)
+            foreground = Vidrio(radio, 0, grosorAnillo = dp(3).toFloat(), punto = Tema.color)
+            outlineProvider = bordesRedondos(radio)
+            clipToOutline = true
+            addView(ImageView(this@MainActivity).apply {
+                setImageBitmap(s.poster)
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                outlineProvider = bordesRedondos(dp(8).toFloat())
+                clipToOutline = true
+                setBackgroundColor(0x22FFFFFF)
+            }, LinearLayout.LayoutParams(dp(88), dp(124)))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(this@MainActivity).apply {
+                    text = s.titulo
+                    setTextColor(Color.WHITE)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                    typeface = medium
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = listOf(if (s.nota > 0) "★ ${s.nota}" else "", s.anio, s.generos, s.canal).filter { it.isNotBlank() }.joinToString("  ·  ")
+                    setTextColor(0xB3FFFFFF.toInt())
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                    setPadding(0, dp(4), 0, dp(8))
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = s.resumen
+                    setTextColor(0x8CFFFFFF.toInt())
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                    maxLines = 3
+                    ellipsize = TextUtils.TruncateAt.END
+                })
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(20) })
+            setOnFocusChangeListener { v, foco ->
+                (foreground as? Vidrio)?.anillo = if (foco) Tema.degradado else null
+                escalar(v, if (foco) 1.03f else 1f, if (foco) dp(12).toFloat() else 0f)
+            }
+            // OK abre la app donde se ve, si está instalada.
+            setOnClickListener {
+                val pkg = CANALES.entries.firstOrNull { s.canal.contains(it.key, ignoreCase = true) }?.value?.firstOrNull { p -> apps.any { it.pkg == p } }
+                if (pkg != null) abrir(pkg) else Toast.makeText(this@MainActivity, "Buscala en tus apps: ${s.titulo}", Toast.LENGTH_LONG).show()
+            }
+        }
+        contenido.addView(tarjeta, LinearLayout.LayoutParams(dp(620), dp(148)).apply {
+            setMargins(dp(MARGEN), dp(10), dp(MARGEN), dp(8))
+        })
+    }
+
+    private val CANALES = mapOf(
+        "Netflix" to listOf("com.netflix.ninja"),
+        "Prime" to listOf("com.amazon.amazonvideo.livingroom", "com.amazon.avod"),
+        "Max" to listOf("com.wbd.stream", "com.hbo.hbonow"),
+        "HBO" to listOf("com.wbd.stream", "com.hbo.hbonow"),
+        "Apple" to listOf("com.apple.atve.androidtv.appletv"),
+        "Paramount" to listOf("com.cbs.ott", "com.cbs.ca"),
+        "YouTube" to listOf("com.amazon.firetv.youtube", "com.google.android.youtube.tv"),
+    )
 
     private fun agregarFila(titulo: String?, lista: List<App>, contenedor: String, destino: LinearLayout, porFila: Int = columnas) {
         if (titulo != null) {
@@ -1270,7 +1632,7 @@ class MainActivity : Activity() {
             if (Tema.neon) {
                 // Temas neón: todas las tarjetas son del mismo vidrio; lo único que cambia es el logo.
                 background = Vidrio(radio, Tema.estilo.tarjeta)
-                foreground = Vidrio(radio, 0, grosorAnillo = dp(3).toFloat())
+                foreground = Vidrio(radio, 0, grosorAnillo = dp(3).toFloat(), punto = Tema.color)
             } else {
                 setBackgroundColor(if (app.banner == null) colorDeMarca(app.icono) else colorDeBorde(app.banner))
                 // Vidrio: un brillo suave desde arriba y un borde finito, igual para todas las tarjetas.
@@ -1288,11 +1650,13 @@ class MainActivity : Activity() {
             ?: app.banner?.let { banner -> recorteDe(app.pkg, banner, ancho, ancho * 9 / 16)?.let { BitmapDrawable(resources, it) } }
         val nombreAdentro = logoSuelto == null && (Tema.neon || app.banner == null)
         if (logoSuelto != null) {
+            // Todos los logos ocupan más o menos la misma superficie: uno alto (Apple TV) no se ve más grande que uno largo (Netflix).
+            val alto = ancho * 9 / 16
+            val (w, h) = medidaOptica(logoSuelto, ancho * 2f / 3, alto / 2f, ancho * alto * 0.2f)
             tarjeta.addView(ImageView(this).apply {
                 setImageDrawable(logoSuelto)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                setPadding(ancho / 6, ancho * 9 / 16 / 4, ancho / 6, ancho * 9 / 16 / 4)
-            }, llenar())
+            }, FrameLayout.LayoutParams(w, h, Gravity.CENTER))
         } else if (app.banner != null && !Tema.neon) {
             tarjeta.addView(ImageView(this).apply {
                 setImageDrawable(app.banner)
@@ -1302,14 +1666,22 @@ class MainActivity : Activity() {
             tarjeta.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                addView(ImageView(this@MainActivity).apply { setImageDrawable(app.icono) }, LinearLayout.LayoutParams(minOf(dp(50), ancho * 9 / 16 - dp(36)), minOf(dp(50), ancho * 9 / 16 - dp(36))))
+                // AMOLED: el dibujo de la app suelto, sin el cuadrado de fondo del ícono, y un poco más grande.
+                val icono = if (Tema.amoled) minOf(dp(56), ancho * 9 / 16 - dp(40)) else minOf(dp(44), ancho * 9 / 16 - dp(44))
+                val imagen = if (Tema.amoled) simboloSuelto(app.icono, icono) else app.icono
+                addView(ImageView(this@MainActivity).apply { setImageDrawable(imagen) }, LinearLayout.LayoutParams(icono, icono))
+                // Nombres largos ("Configuración de Amazon"): centrados, en hasta dos renglones y sin salirse de la tarjeta.
                 addView(TextView(this@MainActivity).apply {
                     text = app.label
                     setTextColor(Color.WHITE)
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                     typeface = medium
-                    setPadding(0, dp(6), 0, 0)
-                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    maxLines = 2
+                    ellipsize = TextUtils.TruncateAt.END
+                    setLineSpacing(0f, 0.95f)
+                    setPadding(dp(12), dp(6), dp(12), 0)
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }, llenar())
         }
 
@@ -1342,6 +1714,7 @@ class MainActivity : Activity() {
             // Neón: la tarjeta elegida se marca con un anillo del degradado.
             (tarjeta.foreground as? Vidrio)?.anillo = if (foco) Tema.degradado else null
             escalar(tarjeta, if (foco) 1.1f else 1f, if (foco) dp(18).toFloat() else 0f)
+            if (Tema.amoled) levantar(tarjeta, foco)
             val alfa0 = nombre.alpha
             val destino = if (foco) 1f else 0f
             animar(nombre, 200) { c -> nombre.alpha = alfa0 + (destino - alfa0) * c }
@@ -1398,10 +1771,32 @@ class MainActivity : Activity() {
         if (sinFondo != null) {
             // Logo suelto sobre la franja de color, alineado abajo a la izquierda.
             val logo = sinFondo
-            val escala = minOf(dp(ANCHO_CABECERA).toFloat() / logo.intrinsicWidth, dp(ALTO_CABECERA).toFloat() / logo.intrinsicHeight)
-            medidas.width = (logo.intrinsicWidth * escala).toInt()
-            medidas.height = (logo.intrinsicHeight * escala).toInt()
+            if (Tema.neon) {
+                // Mismo "peso" para todos los logos, como en las tarjetas.
+                val (w, h) = medidaOptica(logo, dp(ANCHO_CABECERA).toFloat(), dp(ALTO_CABECERA).toFloat(), dp(ANCHO_CABECERA) * dp(ALTO_CABECERA) * 0.55f)
+                medidas.width = w
+                medidas.height = h
+            } else {
+                val escala = minOf(dp(ANCHO_CABECERA).toFloat() / logo.intrinsicWidth, dp(ALTO_CABECERA).toFloat() / logo.intrinsicHeight)
+                medidas.width = (logo.intrinsicWidth * escala).toInt()
+                medidas.height = (logo.intrinsicHeight * escala).toInt()
+            }
             destacada.setImageDrawable(logo)
+            destacada.background = null
+            destacada.clipToOutline = false
+            destacada.setPadding(0, 0, 0, 0)
+            nombreApp.visibility = View.GONE
+            subtitulo.visibility = View.GONE
+        } else if (Tema.neon) {
+            // Temas neón, apps sin logo recortable: el ícono suelto, como un logo más y igual que en su tarjeta
+            // (antes quedaba chiquito en un cuadro, o el banner con su propio fondo).
+            medidas.width = dp(ALTO_CABECERA)
+            medidas.height = dp(ALTO_CABECERA)
+            try {
+                destacada.setImageDrawable(copiaDe(app.icono))
+            } catch (e: OutOfMemoryError) {
+                destacada.setImageDrawable(null)
+            }
             destacada.background = null
             destacada.clipToOutline = false
             destacada.setPadding(0, 0, 0, 0)
@@ -1415,9 +1810,7 @@ class MainActivity : Activity() {
             } catch (e: OutOfMemoryError) {
                 destacada.setImageDrawable(null) // mejor sin imagen que cerrar el launcher
             }
-            // Temas neón: el ícono va sobre el mismo vidrio que las tarjetas, no sobre un color.
-            if (Tema.neon && app.banner == null) destacada.background = Vidrio(dp(14).toFloat(), Tema.estilo.tarjeta)
-            else destacada.setBackgroundColor(if (app.banner == null) colorDeMarca(imagen) else colorDeBorde(imagen))
+            destacada.setBackgroundColor(if (app.banner == null) colorDeMarca(imagen) else colorDeBorde(imagen))
             destacada.clipToOutline = true
             val relleno = if (app.banner == null) dp(28) else 0
             destacada.setPadding(relleno, relleno, relleno, relleno)
@@ -1572,6 +1965,18 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * Medida de un logo suelto según su superficie y no según la caja: así todos pesan lo mismo a la vista
+     * y uno alto no queda enorme al lado de uno largo. Nunca pasa de [maxAncho] x [maxAlto].
+     */
+    private fun medidaOptica(d: Drawable, maxAncho: Float, maxAlto: Float, superficie: Float): Pair<Int, Int> {
+        val w = d.intrinsicWidth.toFloat()
+        val h = d.intrinsicHeight.toFloat()
+        if (w <= 0f || h <= 0f) return maxAncho.toInt() to maxAlto.toInt()
+        val escala = minOf(Math.sqrt((superficie / (w * h)).toDouble()).toFloat(), maxAncho / w, maxAlto / h)
+        return (w * escala).toInt() to (h * escala).toInt()
+    }
+
     private fun distancia(a: Int, b: Int) =
         Math.abs(Color.red(a) - Color.red(b)) + Math.abs(Color.green(a) - Color.green(b)) + Math.abs(Color.blue(a) - Color.blue(b))
 
@@ -1586,6 +1991,8 @@ class MainActivity : Activity() {
 
     // ---------- Optimizar ----------
 
+    private fun protegidas(): Set<String> = prefs.getStringSet(AppsAbiertas.CLAVE_PROTEGIDAS, emptySet()) ?: emptySet()
+
     private fun memoriaLibreMb(): Long {
         val info = ActivityManager.MemoryInfo()
         (getSystemService(ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(info)
@@ -1597,7 +2004,9 @@ class MainActivity : Activity() {
         val antes = memoriaLibreMb()
         val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
         for (ai in packageManager.getInstalledApplications(0)) {
-            if (ai.packageName != packageName) am.killBackgroundProcesses(ai.packageName)
+            val pkg = ai.packageName
+            if (pkg == packageName || pkg in AppsAbiertas.NUNCA_MOSTRAR || pkg == isla.appActual || pkg in protegidas()) continue
+            am.killBackgroundProcesses(pkg)
         }
         contenido.postDelayed({
             val ganados = (memoriaLibreMb() - antes).coerceAtLeast(0)
@@ -1647,11 +2056,13 @@ class MainActivity : Activity() {
     }
 
     private fun prenderPc(pc: Pcs.Pc, yaPrendida: Boolean) {
-        if (yaPrendida) {
-            Toast.makeText(this, "${pc.nombre} ya está prendida", Toast.LENGTH_SHORT).show()
-            return
-        }
-        Toast.makeText(this, "Prendiendo ${pc.nombre}…", Toast.LENGTH_SHORT).show()
+        // La señal se manda siempre: si la PC ya estaba prendida no le hace nada,
+        // y si el estado se equivocó, igual la prende.
+        Toast.makeText(
+            this,
+            if (yaPrendida) "${pc.nombre} parece prendida; igual le mando la señal" else "Prendiendo ${pc.nombre}…",
+            Toast.LENGTH_SHORT,
+        ).show()
         val app = applicationContext
         Thread {
             val salio = try { Pcs.prender(pc) } catch (e: Exception) { false }
@@ -1744,44 +2155,154 @@ class MainActivity : Activity() {
         }
     }
 
+    // ---------- Ajustes ----------
+
+    private var ajustes: AjustesPantalla? = null
+
     private fun menuAjustes() {
+        if (ajustes != null) return
+        cerrarCentro()
+        if (panelAbierto) cerrarPanel(enfocar = false)
         val version = packageManager.getPackageInfo(packageName, 0).versionName
-        mostrarDialogo("Ajustes · ${getString(R.string.app_name)} $version", null, listOf(
-            "Tarjetas: " + (if (prefs.getBoolean("grandes", false)) "grandes (4 por fila)" else "normales (5 por fila)") to {
-                prefs.edit().putBoolean("grandes", !prefs.getBoolean("grandes", false)).commit()
-                refrescar()
-            },
-            "Abrir ${getString(R.string.app_name)} con Inicio: " + (if (servicioInicioActivo()) "sí" else "no") to {
-                if (tienePermisoAjustes()) {
-                    val activar = !servicioInicioActivo()
-                    prefs.edit().putBoolean("boton_inicio", activar).apply()
-                    conPermiso { cambiarServicioInicio(activar) }
-                } else {
-                    abrirIntent(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }
-            },
-            "Tema: ${Tema.estilo.nombre}" to {
-                Tema.siguiente(this)
-                recreate()
-            },
-            "Protector de pantalla: " + (if (protectorActivo()) "sí" else "no") to {
-                conPermiso { cambiarProtector(!protectorActivo()) }
-            },
-            "Ver el protector ahora" to { startActivity(Intent(this, ProtectorActivity::class.java)) },
-            "Volver a mostrar ocultas (${ocultas().size})" to {
-                guardarLista("ocultas", emptyList())
-                refrescar()
-            },
-            "Restablecer orden y categorías" to {
-                val editor = prefs.edit()
-                for (clave in prefs.all.keys) {
-                    if (clave.startsWith("cat_") || Categoria.values().any { it.name == clave }) editor.remove(clave)
-                }
-                editor.commit()
-                refrescar()
-            },
-            "Ajustes de la TV" to { abrirAjustesTv() },
-        ))
+        val azul = 0xFF3B82F6.toInt()
+        val violeta = 0xFF8B5CF6.toInt()
+        val naranja = 0xFFF59E0B.toInt()
+        val celeste = 0xFF0EA5E9.toInt()
+        val gris = 0xFF6B7280.toInt()
+        val rojo = 0xFFEF4444.toInt()
+        val pasarConfiguracion = AjustesPantalla.Opcion(R.drawable.ic_apps, azul, "Pasar tu configuración a otra tele",
+            "Guarda el orden de las apps, las categorías, las ocultas, el tema y tus PCs. Después la app del celular la copia a otra tele con Ziota.",
+            { "Guardar" }, null) {
+            Toast.makeText(this, if (Configuracion.guardar(this)) "Configuración guardada" else "No se pudo guardar", Toast.LENGTH_SHORT).show()
+        }
+        val secciones = listOf(
+            AjustesPantalla.Seccion(R.drawable.ic_estrella, violeta, "Ziota", "El tema, las animaciones, el botón Inicio y el protector de pantalla.", listOf(
+                AjustesPantalla.Opcion(R.drawable.ic_estrella, violeta, "Tema",
+                    "Cambia el color de lo elegido y de lo prendido. Hay cuatro: Vice City, Neon Sunset, Digital Pulse y Clásico.",
+                    { Tema.estilo.nombre }, null) { Tema.siguiente(this); recreate() },
+                AjustesPantalla.Opcion(R.drawable.ic_rayo, naranja, "Animaciones",
+                    "Lo rápido que se mueven los menús y las apps de toda la tele. Rápida hace que todo se sienta más ágil.",
+                    { if (escalaAnimacion() >= 1f) "Normal" else "Rápida" }, null) {
+                    val siguiente = if (escalaAnimacion() >= 1f) 0.5f else 1f
+                    conPermiso { for (clave in escalasAnimacion) Settings.Global.putFloat(contentResolver, clave, siguiente) }
+                },
+                AjustesPantalla.Opcion(R.drawable.ic_inicio, azul, "Abrir Ziota con Inicio",
+                    "En el Fire Stick, el botón Inicio abre la pantalla de Amazon. Prendido, Inicio te trae siempre a Ziota.",
+                    { "" }, { servicioInicioActivo() }) {
+                    if (tienePermisoAjustes()) {
+                        val activar = !servicioInicioActivo()
+                        prefs.edit().putBoolean("boton_inicio", activar).apply()
+                        conPermiso { cambiarServicioInicio(activar) }
+                    } else {
+                        abrirIntent(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    }
+                },
+                AjustesPantalla.Opcion(R.drawable.ic_estrella, celeste, "Protector de pantalla",
+                    "Cuando la tele queda quieta un rato, muestra el logo de Ziota en vez del protector de la tele.",
+                    { "" }, { protectorActivo() }) { conPermiso { cambiarProtector(!protectorActivo()) } },
+            )),
+            AjustesPantalla.Seccion(R.drawable.ic_apps, gris, "Apps", "Las apps ocultas y el orden de las categorías.", listOf(
+                AjustesPantalla.Opcion(R.drawable.ic_ocultar, gris, "Apps ocultas",
+                    "Las apps que escondiste del inicio. OK las vuelve a mostrar todas.",
+                    { ocultas().size.toString() }, null) { guardarLista("ocultas", emptyList()); refrescar() },
+                AjustesPantalla.Opcion(R.drawable.ic_mover, gris, "Restablecer orden y categorías",
+                    "Vuelve a poner las apps en el orden y las categorías de fábrica. Las ocultas siguen ocultas.",
+                    { "" }, null) {
+                    val editor = prefs.edit()
+                    for (clave in prefs.all.keys) {
+                        if (clave.startsWith("cat_") || Categoria.values().any { it.name == clave }) editor.remove(clave)
+                    }
+                    editor.commit()
+                    refrescar()
+                    Toast.makeText(this, "Listo: orden de fábrica", Toast.LENGTH_SHORT).show()
+                },
+            )),
+            AjustesPantalla.Seccion(R.drawable.ic_pelis, naranja, "La recomendación de hoy", "La serie del día: si se muestra, el género, la nota y los años.", listOf(
+                AjustesPantalla.Opcion(R.drawable.ic_estrella, naranja, "Mostrar en el inicio",
+                    "Una serie por día abajo de Recientes, elegida a tu gusto. Sale de TVmaze, que es gratis y solo tiene series.",
+                    { "" }, { Recomendacion.activa(this) }) {
+                    Recomendacion.cambiar(this) { it.putBoolean("reco_activa", !Recomendacion.activa(this)) }
+                    refrescar()
+                },
+                AjustesPantalla.Opcion(R.drawable.ic_pelis, naranja, "Género", "Qué tipo de serie te recomienda. Todos no pone límite.",
+                    { Recomendacion.nombreGenero(this) }, null) {
+                    val lista = Recomendacion.GENEROS
+                    val i = (lista.indexOfFirst { it.first == Recomendacion.genero(this) } + 1) % lista.size
+                    Recomendacion.cambiar(this) { it.putString("reco_genero", lista[i].first) }
+                },
+                AjustesPantalla.Opcion(R.drawable.ic_estrella, naranja, "Nota mínima", "Solo series con esa nota o más en TVmaze (de 1 a 10).",
+                    { "★ " + Recomendacion.nota(this) }, null) {
+                    val lista = Recomendacion.NOTAS
+                    val i = (lista.indexOf(Recomendacion.nota(this)) + 1) % lista.size
+                    Recomendacion.cambiar(this) { it.putFloat("reco_nota", lista[i].toFloat()) }
+                },
+                AjustesPantalla.Opcion(R.drawable.ic_info, naranja, "Años", "Desde qué año se estrenó. Todos incluye las viejas.",
+                    { Recomendacion.desde(this).let { if (it == 0) "Todos" else "Desde $it" } }, null) {
+                    val lista = Recomendacion.ANIOS
+                    val i = (lista.indexOf(Recomendacion.desde(this)) + 1) % lista.size
+                    Recomendacion.cambiar(this) { it.putInt("reco_desde", lista[i]) }
+                },
+                AjustesPantalla.Opcion(R.drawable.ic_buscar, naranja, "Buscar otra", "Cambia la de hoy por otra con los mismos gustos.",
+                    { Recomendacion.estado(this) }, null) {
+                    Recomendacion.cambiar(this) { it.putInt("reco_salto", getSharedPreferences("launcher", MODE_PRIVATE).getInt("reco_salto", 0) + 1) }
+                    Recomendacion.buscar(this) { ajustes?.refrescar(); refrescar() }
+                },
+            )),
+            AjustesPantalla.Seccion(R.drawable.ic_config, celeste, "Esta tele", "Los ajustes del Fire Stick o del Google TV, pasar tu configuración a otra tele y los informes de problemas.", listOf(
+                AjustesPantalla.Opcion(R.drawable.ic_config, gris, "Ajustes de la tele",
+                    "Abre los ajustes del Fire Stick o del Google TV: red, pantalla, sonido y cuentas.",
+                    { "" }, null) { abrirAjustesTv() },
+                pasarConfiguracion,
+                AjustesPantalla.Opcion(R.drawable.ic_herramientas, rojo, "Informes de problemas",
+                    "Lo que falló últimamente, guardado en esta tele. La app del celular lo puede leer para contar qué pasó. OK los borra.",
+                    {
+                        when (val n = Informes.lista(this).size) {
+                            0 -> "Ninguno"
+                            1 -> "1 error"
+                            else -> "$n errores"
+                        }
+                    }, null) {
+                    if (Informes.lista(this).isNotEmpty()) {
+                        Informes.borrar(this)
+                        Toast.makeText(this, "Informes borrados", Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )),
+            AjustesPantalla.Seccion(R.drawable.ic_info, azul, "Sobre Ziota", "Qué versión tenés y cómo se actualiza.", listOf(
+                AjustesPantalla.Opcion(R.drawable.ic_info, azul, "Versión",
+                    "Ziota se actualiza desde la app Shikitari del celular, que instala la última versión en cada tele.",
+                    { version ?: "" }, null) {},
+            )),
+        )
+        val foto = if (hayDifuminado) null else Tema.fotoBorrosa(capa)
+        if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), Shader.TileMode.CLAMP))
+        capa.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        val a = AjustesPantalla(this, foto, secciones)
+        ajustes = a
+        (capa.parent as ViewGroup).addView(a, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        aplicarFuente(a)
+        a.alpha = 0f
+        a.animate().alpha(1f).setDuration(200).start()
+        a.post { a.enfocar() }
+    }
+
+    private fun cerrarAjustes() {
+        val a = ajustes ?: return
+        ajustes = null
+        (a.parent as? ViewGroup)?.removeView(a)
+        if (hayDifuminado && !panelAbierto && dialogosAbiertos == 0 && centro == null) capa.setRenderEffect(null)
+        capa.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        focoInicial()?.requestFocus()
+    }
+
+    /** La app del celular puede pasar una configuración guardada en otra tele (extra "configuracion"). */
+    private fun recibirConfiguracion(intent: Intent?) {
+        val texto = intent?.getStringExtra("configuracion") ?: return
+        intent.removeExtra("configuracion")
+        if (Configuracion.cargar(this, texto)) {
+            Toast.makeText(this, "Configuración cargada", Toast.LENGTH_SHORT).show()
+            recreate()
+        }
     }
 
     /** Redibuja las filas sin sacar el foco del menú lateral si está abierto. */
@@ -1887,7 +2408,7 @@ class MainActivity : Activity() {
             val etiqueta = TextView(this).apply {
                 text = texto
                 setTextColor(Color.WHITE)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
             }
@@ -1897,7 +2418,7 @@ class MainActivity : Activity() {
                 setPadding(dp(10), 0, dp(10), 0)
                 isFocusable = true
                 isClickable = true
-                if (dibujo != null) addView(imagen, LinearLayout.LayoutParams(dp(16), dp(16)).apply { marginEnd = dp(10) })
+                if (dibujo != null) addView(imagen, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(12) })
                 addView(etiqueta)
                 setOnFocusChangeListener { v, foco ->
                     v.background = when {
@@ -1918,7 +2439,7 @@ class MainActivity : Activity() {
                 }
             }
             if (primera == null) primera = opcion
-            caja.addView(opcion, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)))
+            caja.addView(opcion, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)))
         }
 
         aplicarFuente(caja)
@@ -1930,7 +2451,7 @@ class MainActivity : Activity() {
         }
         // La foto es de toda la pantalla de atrás (con el menú lateral, si está abierto).
         esmerilar(vidrio, capa.parent as View) { IntArray(2).let { l -> marco.getLocationOnScreen(l); Point(l[0], l[1]) } }
-        dialogo.setContentView(marco, ViewGroup.LayoutParams(dp(264), ViewGroup.LayoutParams.WRAP_CONTENT))
+        dialogo.setContentView(marco, ViewGroup.LayoutParams(dp(300), ViewGroup.LayoutParams.WRAP_CONTENT))
         dialogo.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setDimAmount(0.25f)
@@ -1940,7 +2461,7 @@ class MainActivity : Activity() {
         if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(12).toFloat(), dp(12).toFloat(), Shader.TileMode.CLAMP))
         dialogo.setOnDismissListener {
             dialogosAbiertos--
-            if (hayDifuminado && dialogosAbiertos == 0 && !panelAbierto) capa.setRenderEffect(null)
+            if (hayDifuminado && dialogosAbiertos == 0 && !panelAbierto && centro == null) capa.setRenderEffect(null)
         }
         aplicarFuente(caja)
         dialogo.show()
@@ -2014,6 +2535,8 @@ class MainActivity : Activity() {
 
     companion object {
         const val EXTRA_DESDE_HOME = "desde_home"
+        /** Si Ziota está en pantalla ahora (lo mira el servicio de Inicio). */
+        @Volatile var adelante = false
         private const val COLOR_NEUTRO = 0xFF26262C.toInt()
         /** Color de selección: cian con el tema Vice, crema con el clásico. */
         val CREMA: Int get() = Tema.acento

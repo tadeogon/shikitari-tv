@@ -30,10 +30,26 @@ import android.widget.TextView
 import kotlin.math.sin
 
 /**
- * Android solo deja ver qué música suena a las apps con este servicio habilitado.
- * No lee ninguna notificación: está vacío a propósito.
+ * Android solo deja ver qué música suena a las apps con este servicio habilitado (permiso que se da una vez
+ * por ADB: `cmd notification allow_listener com.pachi.tv/com.pachi.tv.MusicaListener`).
+ * También le pasa al Centro de Control las notificaciones de la tele.
  */
-class MusicaListener : NotificationListenerService()
+class MusicaListener : NotificationListenerService() {
+    override fun onListenerConnected() {
+        activo = this
+    }
+
+    override fun onListenerDisconnected() {
+        if (activo === this) activo = null
+    }
+
+    companion object {
+        /** El servicio conectado; null si Android todavía no le dio permiso o no lo arrancó. */
+        @Volatile
+        var activo: MusicaListener? = null
+            private set
+    }
+}
 
 /**
  * Isla dinámica: píldora negra que aparece cuando suena música. Es chica y se abre al cambiar de tema
@@ -49,7 +65,7 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
             }
         }
         clipToOutline = true
-        setBackgroundColor(0xFF2C2C2E.toInt())
+        setBackgroundColor(if (Tema.neon) 0x26FFFFFF else 0xFF2C2C2E.toInt())
     }
     private val titulo = TextView(context).apply {
         setTextColor(Color.WHITE)
@@ -225,8 +241,14 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
         val imagen: Bitmap? = datos?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: datos?.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: datos?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-        tapa.setImageBitmap(imagen)
-        tapaActual = imagen
+        // La tapa que manda la app puede ser enorme (1000×1000 o más): se guarda una copia chica
+        // para no tener esa foto ocupando memoria mientras Ziota está detrás de otra app.
+        val firma = imagen?.let { System.identityHashCode(it) to it.generationId }
+        if (firma != firmaTapa) {
+            firmaTapa = firma
+            tapaActual = imagen?.let { achicarTapa(it) }
+        }
+        ponerTapa(tapa, tapaActual, dp(6))
         recordar(elegido.packageName, nombre, artista.text.toString())
         barras.sonando = elegido.playbackState?.state == PlaybackState.STATE_PLAYING
         pausa.setImageResource(if (barras.sonando) R.drawable.ic_pause else R.drawable.ic_play)
@@ -267,7 +289,7 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
         dormida = true
         titulo.text = nombre
         artista.text = guardado.getString("isla_artista", "") ?: ""
-        tapa.setImageBitmap(tapaActual)
+        ponerTapa(tapa, tapaActual, dp(6))
         barras.sonando = false
         pausa.setImageResource(R.drawable.ic_play)
         if (visibility != VISIBLE) visibility = VISIBLE
@@ -299,10 +321,28 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
     var alCambiar: (() -> Unit)? = null
     var tapaActual: Bitmap? = null
         private set
+    private var firmaTapa: Pair<Int, Int>? = null
+        private set
     val tituloActual: CharSequence get() = titulo.text
     val artistaActual: CharSequence get() = artista.text
 
     val hayMusica get() = controlador != null || dormida
+
+    /** App que está sonando (null si no hay ninguna). */
+    val appActual: String? get() = controlador?.packageName
+
+    /** Por dónde va el tema y cuánto dura, en milisegundos; null si la app no lo dice. */
+    fun progreso(): Pair<Long, Long>? {
+        val c = controlador ?: return null
+        val total = c.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+        val estado = c.playbackState ?: return null
+        if (total <= 0) return null
+        var pos = estado.position
+        if (estado.state == PlaybackState.STATE_PLAYING && estado.lastPositionUpdateTime > 0) {
+            pos += ((SystemClock.elapsedRealtime() - estado.lastPositionUpdateTime) * estado.playbackSpeed).toLong()
+        }
+        return pos.coerceIn(0, total) to total
+    }
 
     val sonando get() = controlador?.playbackState?.state == PlaybackState.STATE_PLAYING
 
@@ -389,6 +429,36 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
             PlaybackState.STATE_SKIPPING_TO_PREVIOUS,
             PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM,
         )
+    }
+}
+
+/**
+ * Carátula del tema. Muchas apps (Spotify en el Fire Stick, por ejemplo) no la pasan: en vez de un círculo
+ * vacío queda una nota musical, para que se entienda qué es.
+ */
+/** Achica la carátula a 512 px como máximo (alcanza para la pantalla de música; la isla la usa más chica). */
+fun achicarTapa(b: Bitmap, maximo: Int = 512): Bitmap {
+    val lado = maxOf(b.width, b.height)
+    if (lado <= maximo) return b
+    val f = maximo.toFloat() / lado
+    return try {
+        Bitmap.createScaledBitmap(b, maxOf(1, (b.width * f).toInt()), maxOf(1, (b.height * f).toInt()), true)
+    } catch (e: Throwable) {
+        b
+    }
+}
+
+fun ponerTapa(v: ImageView, imagen: Bitmap?, relleno: Int) {
+    if (imagen != null) {
+        v.setImageBitmap(imagen)
+        v.scaleType = ImageView.ScaleType.CENTER_CROP
+        v.imageTintList = null
+        v.setPadding(0, 0, 0, 0)
+    } else {
+        v.setImageResource(R.drawable.ic_musica)
+        v.scaleType = ImageView.ScaleType.FIT_CENTER
+        v.imageTintList = ColorStateList.valueOf(0xB3FFFFFF.toInt())
+        v.setPadding(relleno, relleno, relleno, relleno)
     }
 }
 

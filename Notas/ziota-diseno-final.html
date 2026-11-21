@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ziota diseño final</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--ac:#7fd8ff;--acg:rgba(127,216,255,.5);--t1:#fff;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.5);--vid:rgba(255,255,255,.07);--vid2:rgba(255,255,255,.12);--borde:rgba(255,255,255,.14);--ease:cubic-bezier(.16,1,.3,1)}
+*{box-sizing:border-box;margin:0}
+::selection{background:var(--ac);color:#000}
+html,body{background:#000;color:var(--t1);font-family:Montserrat,sans-serif;min-height:100%}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:14px 16px}
+.ctl button{font:inherit;font-size:13px;color:var(--t2);background:#111;border:1px solid #2a2a2a;border-radius:20px;padding:7px 15px;cursor:pointer}
+.ctl button.on{background:#fff;color:#000;border-color:#fff}
+.ctl .sep{width:1px;background:#333;margin:0 6px}
+.marco{width:100%;display:flex;justify-content:center;padding:0 16px 24px}
+.tv{width:1920px;height:1080px;position:relative;overflow:hidden;background:#000;transform-origin:top left;font-size:28px;border-radius:8px}
+.caja{position:relative}
+.fondo{position:absolute;inset:0;background-size:cover;background-position:center;transition:filter .5s var(--ease)}
+.vela{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.9) 0%,rgba(0,0,0,.55) 38%,rgba(0,0,0,.1) 70%),linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,0) 50%)}
+.pant{position:absolute;inset:0;display:none}
+.pant.on{display:block}
+.vidrio{background:linear-gradient(165deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 40%,rgba(0,0,0,.2));border:1px solid var(--borde);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5)}
+.f{outline:none;transition:transform .28s var(--ease),box-shadow .28s var(--ease),border-color .2s,background .2s}
+.f:focus{border-color:#fff;border-width:3px;box-shadow:0 0 0 1px var(--ac),0 0 36px var(--acg),0 36px 60px rgba(0,0,0,.7);z-index:3}
+.lev:focus{transform:scale(1.1) translateY(-10px)}
+.lev2:focus{transform:scale(1.04) translateY(-4px)}
+.ti{line-height:1}
+/* barra superior */
+.arriba{position:absolute;top:56px;left:176px;right:80px;display:flex;align-items:flex-start;justify-content:space-between}
+.hora{font-size:124px;font-weight:500;letter-spacing:-.035em;line-height:.9;font-variant-numeric:tabular-nums}
+.fecha{font-size:30px;color:var(--t2);margin-top:14px}
+.isla{display:flex;align-items:center;gap:20px;border-radius:44px;padding:12px 30px 12px 12px;margin-top:8px}
+.isla .tapa{width:64px;height:64px;border-radius:50%;background:conic-gradient(from 200deg,#ff8a3d,#ff3d8b,#5b6cff,#3de0ff,#ff8a3d)}
+.isla b{font-weight:500;font-size:26px;display:block}.isla span{font-size:22px;color:var(--t3)}
+.barras{display:flex;gap:5px;align-items:flex-end;height:30px;margin-left:24px}.barras i{width:6px;border-radius:3px;background:var(--ac);animation:sube 1.1s var(--ease) infinite alternate}
+.barras i:nth-child(2){animation-delay:.3s}.barras i:nth-child(3){animation-delay:.6s}
+@keyframes sube{from{height:8px}to{height:30px}}
+.der{display:flex;align-items:center;gap:36px}
+.clima{text-align:right}.clima b{font-size:40px;font-weight:500;display:flex;align-items:center;gap:12px;justify-content:flex-end}.clima span{font-size:22px;color:var(--t3)}
+.tf{font-weight:600;font-size:34px;letter-spacing:.08em;color:rgba(255,255,255,.45);border:2px solid rgba(255,255,255,.3);border-radius:14px;padding:8px 14px}
+/* riel */
+.riel{position:absolute;left:28px;top:300px;width:112px;display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 0;border-radius:40px}
+.riel .f{width:84px;height:84px;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:16px;color:var(--t2);border:1px solid transparent}
+.riel .f .ti{font-size:36px}
+.riel .on{background:color-mix(in srgb,var(--ac) 22%,transparent);color:#fff;border-color:color-mix(in srgb,var(--ac) 60%,transparent)}
+.riel .f:focus{transform:scale(1.08)}
+/* filas */
+.cont{position:absolute;left:176px;right:0;top:330px}
+.sec{font-size:30px;font-weight:500;display:flex;align-items:center;gap:14px;margin:0 0 26px}
+.sec::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--ac);box-shadow:0 0 14px var(--acg)}
+.fila{display:flex;gap:36px;margin-bottom:56px}
+.app{width:236px;height:212px;border-radius:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-size:26px;font-weight:500;color:var(--t2)}
+.app svg{width:92px;height:92px;transition:transform .28s var(--ease)}
+.app:focus{color:#fff}.app:focus svg{transform:scale(1.06)}
+.rec{width:400px;height:226px;border-radius:32px;border:1px solid var(--borde);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:22px 26px;font-size:24px;font-weight:500}
+.rec::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent 60%);z-index:0}
+.rec span{position:relative;z-index:1;display:flex;align-items:center;gap:12px}
+.rec .mini{width:36px;height:36px}
+.peli{width:1180px;height:250px;border-radius:36px;display:flex;align-items:center;gap:40px;padding:0 40px 0 0;overflow:hidden}
+.poster{width:180px;height:250px;flex:none;background:linear-gradient(160deg,#2b1d4e,#0b0716 70%),#000;display:flex;align-items:flex-end;justify-content:center;padding-bottom:20px;font-size:20px;color:var(--t3)}
+.peli h3{font-size:40px;font-weight:600;margin-bottom:10px}.peli p{font-size:24px;color:var(--t2);line-height:1.45;max-width:38ch}
+.chip{display:inline-flex;align-items:center;gap:8px;font-size:20px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,.1);margin-right:10px;margin-bottom:14px;color:var(--t2)}
+/* centro de control */
+.cc{position:absolute;inset:48px;border-radius:56px;display:grid;grid-template-columns:780px 1fr;gap:56px;padding:64px}
+.cc .hora{font-size:150px}
+.notis{margin-top:44px;display:flex;flex-direction:column;gap:20px}
+.noti{display:grid;grid-template-columns:64px 1fr auto;gap:22px;align-items:start;padding:24px 28px;border-radius:30px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.noti .ic{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center}
+.noti b{font-size:26px;font-weight:600;display:block;margin-bottom:6px}.noti p{font-size:23px;color:var(--t2);line-height:1.4}.noti small{font-size:20px;color:var(--t3)}
+.noti.f:focus{transform:scale(1.03)}
+.mods{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:200px;gap:24px;align-content:center}
+.mod{border-radius:40px;padding:28px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);font-size:24px;font-weight:500}
+.mod .ti{font-size:44px}.mod small{display:block;font-size:20px;font-weight:400;color:var(--t3);margin-top:4px}
+.mod.prendido{background:var(--ac);color:#000;border-color:var(--ac)}.mod.prendido small{color:rgba(0,0,0,.6)}
+.ancho{grid-column:span 2}.alto{grid-row:span 2}
+.vol{position:relative;overflow:hidden}.vol::before{content:"";position:absolute;left:0;right:0;bottom:0;height:62%;background:rgba(255,255,255,.85)}.vol>*{position:relative;mix-blend-mode:difference}
+.mem .barra{height:12px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:14px}.mem .barra i{display:block;height:100%;width:74%;background:var(--ac);border-radius:6px}
+/* apps abiertas */
+.pila{position:absolute;left:360px;top:220px;width:1080px;height:640px}
+.carta{position:absolute;border-radius:48px;overflow:hidden}
+.carta.atras1{left:-110px;top:40px;width:1080px;height:560px;opacity:.45;transform:scale(.9)}
+.carta.atras2{left:-200px;top:70px;width:1080px;height:500px;opacity:.25;transform:scale(.82)}
+.carta.frente{left:0;top:0;width:1080px;height:640px;display:flex;align-items:center;justify-content:center}
+.carta.frente svg{width:280px;height:280px}
+.cab{position:absolute;left:360px;top:110px;display:flex;align-items:center;gap:26px;font-size:52px;font-weight:500}
+.cab small{font-size:30px;color:var(--t3);font-weight:400}
+.todo{position:absolute;right:170px;top:400px;display:flex;flex-direction:column;align-items:center;gap:26px;font-size:30px;font-weight:500}
+.todo .f{width:150px;height:150px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:56px}
+.todo .f:focus{transform:scale(1.1)}
+.pie{position:absolute;bottom:56px;left:0;right:0;text-align:center;font-size:26px;color:var(--t3);word-spacing:4px}
+.pie b{color:var(--t2);font-weight:500}
+/* musica */
+.mus{position:absolute;left:176px;right:120px;bottom:130px;display:flex;align-items:flex-end;gap:64px}
+.disco{width:460px;height:460px;border-radius:56px;flex:none;position:relative;overflow:hidden;background:#050505;border:1px solid var(--borde);display:flex;align-items:center;justify-content:center}
+.disco::before{content:"";position:absolute;inset:-30%;background:conic-gradient(from 0deg,transparent,var(--ac),transparent 40%,var(--ac),transparent 80%);filter:blur(60px);opacity:.55;animation:gira 14s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+.disco .ti{position:relative;font-size:150px;color:rgba(255,255,255,.9)}
+.mus h2{font-size:104px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.mus .art{font-size:38px;color:var(--t2);margin:18px 0 48px}
+.prog{height:10px;border-radius:5px;background:rgba(255,255,255,.18);width:1100px}.prog i{display:block;height:100%;width:38%;border-radius:5px;background:#fff;box-shadow:0 0 18px var(--acg)}
+.tiempos{display:flex;justify-content:space-between;width:1100px;font-size:22px;color:var(--t3);margin-top:14px;font-variant-numeric:tabular-nums}
+.mus .hora{position:absolute}
+.minihora{position:absolute;top:64px;left:176px;font-size:56px;font-weight:500;color:var(--t2)}
+/* ajustes */
+.aj{position:absolute;inset:0;display:grid;grid-template-columns:780px 1fr;gap:80px;padding:120px 120px 0 176px}
+.ex .grande{width:160px;height:160px;border-radius:44px;display:flex;align-items:center;justify-content:center;font-size:84px;margin-bottom:44px}
+.ex h2{font-size:72px;font-weight:600;letter-spacing:-.02em;line-height:1.05;margin-bottom:28px}
+.ex p{font-size:30px;color:var(--t2);line-height:1.55;max-width:30ch}
+.lista{height:960px;overflow:hidden;padding:12px 24px 0 12px}
+.lista h4{font-size:24px;font-weight:500;color:var(--t3);margin:40px 0 16px 8px}
+.dest{border-radius:36px;padding:32px;margin-bottom:8px}
+.dest b{font-size:30px;font-weight:600}.dest p{font-size:22px;color:var(--t2);margin:8px 0 24px}
+.temas{display:flex;gap:20px}.temas div{flex:1;height:110px;border-radius:24px;background-size:cover;background-position:center;border:3px solid transparent;display:flex;align-items:flex-end;padding:12px 16px;font-size:20px;font-weight:500}
+.temas .on{border-color:#fff}
+.fil{display:flex;align-items:center;gap:24px;padding:22px 26px;border-radius:28px;font-size:28px;border:1px solid transparent;background:rgba(255,255,255,.05);margin-bottom:12px}
+.fil .ico{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none}
+.fil .val{margin-left:auto;color:var(--t3);font-size:24px;display:flex;align-items:center;gap:10px}
+.fil.f:focus{background:rgba(255,255,255,.12);transform:scale(1.02)}
+.sw{width:76px;height:42px;border-radius:21px;background:rgba(255,255,255,.2);position:relative;margin-left:auto}.sw::after{content:"";position:absolute;left:5px;top:5px;width:32px;height:32px;border-radius:50%;background:#fff;transition:left .25s var(--ease)}
+.sw.on{background:var(--ac)}.sw.on::after{left:39px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="ctl" id="ctl"></div>
+<div class="marco"><div class="caja" id="caja"><div class="tv" id="tv">
+<div class="fondo" id="fondo"></div><div class="vela"></div>
+
+<!-- INICIO -->
+<section class="pant on" data-p="Inicio">
+ <div class="arriba">
+  <div><div class="hora">22:42</div><div class="fecha">Jueves 19 de noviembre</div></div>
+  <div class="isla vidrio f" tabindex="0"><div class="tapa"></div><div><b>Cara Bacana</b><span>MC G15 · Spotify</span></div><div class="barras"><i></i><i></i><i></i></div></div>
+  <div class="der"><div class="clima"><b><i class="ti ti-cloud-rain" style="font-size:42px"></i>26°</b><span>Posadas · Llovizna</span></div><div class="tf">TF</div></div>
+ </div>
+ <nav class="riel vidrio">
+  <div class="f on" tabindex="0"><i class="ti ti-home"></i>Inicio</div>
+  <div class="f" tabindex="0"><i class="ti ti-layout-grid"></i>Apps</div>
+  <div class="f" tabindex="0"><i class="ti ti-device-gamepad-2"></i>Juegos</div>
+  <div class="f" tabindex="0"><i class="ti ti-settings"></i>Ajustes</div>
+  <div class="f" tabindex="0"><i class="ti ti-power"></i>Prender PC</div>
+ </nav>
+ <div class="cont">
+  <div class="sec">Favoritas</div>
+  <div class="fila" id="favs"></div>
+  <div class="sec">Recientes</div>
+  <div class="fila" id="recs"></div>
+ </div>
+</section>
+
+<!-- CENTRO DE CONTROL -->
+<section class="pant" data-p="Centro de control">
+ <div class="cc vidrio">
+  <div>
+   <div class="hora">22:42</div><div class="fecha">Jueves 19 de noviembre · 26° Llovizna</div>
+   <div class="notis">
+    <div class="noti f" tabindex="0"><div class="ic" style="background:#e50914"><i class="ti ti-movie" style="font-size:34px"></i></div><div><b>Netflix</b><p>Ya está el capítulo 4 de la serie que estás viendo.</p></div><small>hace 5 min</small></div>
+    <div class="noti f" tabindex="0"><div class="ic" style="background:#1ed760;color:#000"><i class="ti ti-music" style="font-size:34px"></i></div><div><b>Spotify</b><p>Sonando en la tele: Cara Bacana, de MC G15.</p></div><small>ahora</small></div>
+    <div class="noti f" tabindex="0"><div class="ic" style="background:#2b2b2b"><i class="ti ti-download" style="font-size:34px"></i></div><div><b>Downloader</b><p>Terminó de bajar Ziota 1.45. OK para instalar.</p></div><small>hace 1 h</small></div>
+   </div>
+  </div>
+  <div class="mods">
+   <div class="mod f ancho prendido" tabindex="0"><i class="ti ti-wifi"></i><div>Wi-Fi<small>Casa 5G</small></div></div>
+   <div class="mod f ancho" tabindex="0"><i class="ti ti-bluetooth"></i><div>Bluetooth<small>Apagado</small></div></div>
+   <div class="mod f" tabindex="0"><i class="ti ti-moon"></i><div>Dormir<small>No</small></div></div>
+   <div class="mod f" tabindex="0"><i class="ti ti-device-tv-off"></i><div>Pantalla apagada<small>Con sonido</small></div></div>
+   <div class="mod f vol alto" tabindex="0"><i class="ti ti-volume"></i><div>Volumen<small>62</small></div></div>
+   <div class="mod f mem" tabindex="0"><i class="ti ti-cpu"></i><div>Memoria<small>1,2 de 1,6 GB</small><div class="barra"><i></i></div></div></div>
+   <div class="mod f ancho" tabindex="0"><i class="ti ti-device-desktop-bolt"></i><div>Prender PC<small>PC del escritorio</small></div></div>
+   <div class="mod f" tabindex="0"><i class="ti ti-settings"></i><div>Ajustes<small>&nbsp;</small></div></div>
+  </div>
+ </div>
+</section>
+
+<!-- APPS ABIERTAS -->
+<section class="pant" data-p="Apps abiertas">
+ <div class="cab"><span id="cabIco"></span>Spotify <small>La última que usaste</small></div>
+ <div class="pila">
+  <div class="carta atras2 vidrio"></div>
+  <div class="carta atras1 vidrio"></div>
+  <div class="carta frente vidrio f" tabindex="0" id="cartaFrente"></div>
+ </div>
+ <div class="todo"><div class="f vidrio" tabindex="0"><i class="ti ti-trash"></i></div>Cerrar todo<span style="font-size:24px;color:var(--t3);font-weight:400">Libera 420 MB</span></div>
+ <div class="pie"><b>OK</b> abre · <b>↑</b> cierra esta app · <b>→</b> Cerrar todo · <b>Atrás</b> vuelve sin abrir nada</div>
+</section>
+
+<!-- MUSICA -->
+<section class="pant" data-p="Música">
+ <div class="minihora">22:42</div>
+ <div class="mus">
+  <div class="disco"><i class="ti ti-music"></i></div>
+  <div><h2>Cara Bacana</h2><div class="art">MC G15 · Spotify</div><div class="prog"><i></i></div><div class="tiempos"><span>1:12</span><span>3:08</span></div></div>
+ </div>
+</section>
+
+<!-- AJUSTES -->
+<section class="pant" data-p="Ajustes">
+ <div class="aj">
+  <div class="ex"><div class="grande vidrio" id="exIco"><i class="ti ti-palette"></i></div><h2 id="exT">Tema</h2><p id="exP">Cambia el fondo y el color de lo que elegís. Los tres son negros de verdad: en una tele OLED casi no gastan luz.</p></div>
+  <div class="lista">
+   <div class="dest vidrio f" tabindex="0" data-t="Tema" data-i="ti-palette" data-p="Cambia el fondo y el color de lo que elegís. Los tres son negros de verdad: en una tele OLED casi no gastan luz."><b>Tema</b><p>Fondo y color de lo elegido</p><div class="temas" id="mTemas"></div></div>
+   <h4>Pantalla</h4>
+   <div class="fil f" tabindex="0" data-t="Animaciones" data-i="ti-bolt" data-p="Rápida acorta los movimientos. Sirve si la tele anda lenta o si preferís que todo aparezca al instante."><div class="ico" style="background:#ffb340;color:#000"><i class="ti ti-bolt"></i></div>Animaciones<span class="val">Normal <i class="ti ti-chevron-right"></i></span></div>
+   <div class="fil f" tabindex="0" data-t="Música en pantalla" data-i="ti-music" data-p="Si suena música y no tocás el control por 10 segundos, el tema ocupa toda la pantalla. Cualquier botón la saca."><div class="ico" style="background:#1ed760;color:#000"><i class="ti ti-music"></i></div>Música en pantalla<span class="sw on"></span></div>
+   <div class="fil f" tabindex="0" data-t="Apps ocultas" data-i="ti-eye-off" data-p="Las apps que no usás no aparecen en el inicio. Desde acá las podés volver a mostrar."><div class="ico" style="background:#8a8a8f"><i class="ti ti-eye-off"></i></div>Apps ocultas<span class="val">3 <i class="ti ti-chevron-right"></i></span></div>
+   <h4>Esta tele</h4>
+   <div class="fil f" tabindex="0" data-t="Pasar a otra tele" data-i="ti-device-mobile-share" data-p="Guarda tus favoritas, el tema y las PCs en el celular, para cargarlos en otra tele con la app instaladora."><div class="ico" style="background:#5b8cff"><i class="ti ti-device-mobile-share"></i></div>Pasar a otra tele<span class="val"><i class="ti ti-chevron-right"></i></span></div>
+   <div class="fil f" tabindex="0" data-t="Informes de problemas" data-i="ti-bug" data-p="Si Ziota se cierra sola, manda un informe para que se pueda arreglar. No manda nada personal."><div class="ico" style="background:#ff5a5f"><i class="ti ti-bug"></i></div>Informes de problemas<span class="sw"></span></div>
+   <div class="fil f" tabindex="0" data-t="Versión" data-i="ti-refresh" data-p="Tenés Ziota 1.45. Te avisa cuando hay una versión nueva y la instala con la app del celular."><div class="ico" style="background:#3a3a3c"><i class="ti ti-refresh"></i></div>Versión<span class="val">1.45 · al día</span></div>
+  </div>
+ </div>
+</section>
+</div></div></div>
+
+<script>
+const FONDOS={prisma:'__PRISMA__',seda:'__SEDA__',vino:'__VINO__'};
+const temas=[{k:'prisma',n:'Prisma',a:'#7fd8ff'},{k:'seda',n:'Seda negra',a:'#e9e9ee'},{k:'vino',n:'Vino líquido',a:'#ff6fae'}];
+const ICO={
+ Netflix:'<svg viewBox="0 0 40 40"><path d="M11 4h6l6 17V4h6v32h-6L17 19v17h-6z" fill="#e50914"/></svg>',
+ YouTube:'<svg viewBox="0 0 40 40"><rect x="3" y="9" width="34" height="23" rx="7" fill="#f00"/><path d="M17 15l9 5.5-9 5.5z" fill="#fff"/></svg>',
+ 'Prime Video':'<svg viewBox="0 0 40 40"><text x="20" y="20" text-anchor="middle" font-family="Montserrat" font-weight="600" font-size="11" fill="#fff">prime</text><path d="M9 25q11 6 22 0" stroke="#1a98ff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>',
+ Spotify:'<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="#1ed760"/><path d="M11 15q10-3 19 2M12 20q8-2 15 1.5M13 25q6-1.5 11 1" stroke="#000" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>',
+ Stremio:'<svg viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="24" rx="4" transform="rotate(45 20 20)" fill="#7b5cff"/><path d="M16 13l10 7-10 7z" fill="#fff"/></svg>',
+ ClipBox:'<svg viewBox="0 0 40 40"><path d="M20 5l13 7v16l-13 7-13-7V12z" fill="#fff"/><path d="M20 20l13-8v16l-13 7z" fill="#e8242f"/></svg>'};
+document.getElementById('favs').innerHTML=Object.keys(ICO).map(n=>`<div class="app vidrio f lev" tabindex="0">${ICO[n]}${n}</div>`).join('');
+document.getElementById('recs').innerHTML=[['Spotify','#0b3d22,#000'],['Stremio','#2a1a6a,#000'],['Netflix','#5a0a10,#000'],['YouTube','#4a0000,#000']].map(([n,g])=>`<div class="rec f lev2" tabindex="0" style="background:linear-gradient(135deg,${g})"><span><span class="mini">${ICO[n]}</span>${n}</span></div>`).join('');
+document.getElementById('cartaFrente').innerHTML=ICO.Spotify;
+document.getElementById('cabIco').innerHTML=`<span style="display:inline-block;width:72px;height:72px">${ICO.Spotify}</span>`;
+const pants=[...document.querySelectorAll('.pant')],ctl=document.getElementById('ctl');
+let tema=0,pant=0;
+function pintar(){const t=temas[tema];document.getElementById('fondo').style.backgroundImage=`url(${FONDOS[t.k]})`;
+ const r=document.documentElement.style;r.setProperty('--ac',t.a);r.setProperty('--acg',t.a+'80');
+ pants.forEach((p,i)=>p.classList.toggle('on',i==pant));
+ document.getElementById('fondo').style.filter=pant==1||pant==2?'blur(24px) brightness(.55)':pant==3?'brightness(.8)':'none';
+ document.getElementById('mTemas').innerHTML=temas.map((x,i)=>`<div class="${i==tema?'on':''}" style="background-image:url(${FONDOS[x.k]})">${x.n}</div>`).join('');
+ [...ctl.querySelectorAll('button')].forEach(b=>b.classList.toggle('on',b.dataset.k=='p'+pant||b.dataset.k=='t'+tema));
+ const f=pants[pant].querySelector('.f');f&&f.focus({preventScroll:true})}
+pants.forEach((p,i)=>{const b=document.createElement('button');b.textContent=p.dataset.p;b.dataset.k='p'+i;b.onclick=()=>{pant=i;pintar()};ctl.appendChild(b)});
+ctl.insertAdjacentHTML('beforeend','<span class="sep"></span>');
+temas.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t.n;b.dataset.k='t'+i;b.onclick=()=>{tema=i;pintar()};ctl.appendChild(b)});
+document.addEventListener('focusin',e=>{const el=e.target.closest('[data-t]');if(!el)return;exT.textContent=el.dataset.t;exP.textContent=el.dataset.p;exIco.innerHTML=`<i class="ti ${el.dataset.i}"></i>`});
+document.addEventListener('keydown',e=>{const d={ArrowRight:[1,0],ArrowLeft:[-1,0],ArrowDown:[0,1],ArrowUp:[0,-1]}[e.key];if(!d)return;e.preventDefault();
+ const a=document.activeElement,ra=a.getBoundingClientRect(),cx=ra.x+ra.width/2,cy=ra.y+ra.height/2;let best=null,bd=1e9;
+ pants[pant].querySelectorAll('.f').forEach(el=>{if(el==a)return;const r=el.getBoundingClientRect(),x=r.x+r.width/2-cx,y=r.y+r.height/2-cy;const along=x*d[0]+y*d[1];if(along<=4)return;const off=Math.abs(x*d[1])+Math.abs(y*d[0]);const s=along+off*2.2;if(s<bd){bd=s;best=el}});
+ best&&best.focus({preventScroll:true})});
+function ajustar(){const w=Math.min(innerWidth-32,1920),k=w/1920,tv=document.getElementById('tv');tv.style.transform=`scale(${k})`;const c=document.getElementById('caja');c.style.width=1920*k+'px';c.style.height=1080*k+'px'}
+addEventListener('resize',ajustar);ajustar();pintar();
+</script></body></html>

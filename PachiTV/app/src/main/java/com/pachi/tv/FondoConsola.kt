@@ -1,7 +1,10 @@
 package com.pachi.tv
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -43,8 +46,13 @@ class FondoConsola(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
+        if (Tema.amoled) {
+            dibujarFoto(canvas, w, h)
+            return
+        }
         if (Tema.neon) {
-            dibujarNeon(canvas, w, h, Tema.estilo)
+            // Rediseño 1.43: fondo liso del tema, sin cuadrícula ni brillo; lo único que resalta es lo enfocado.
+            canvas.drawColor(Tema.fondo)
             return
         }
         canvas.drawColor(BASE)
@@ -53,7 +61,35 @@ class FondoConsola(context: Context) : View(context) {
         pincel.shader = null
     }
 
-    private val pincelLinea = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
+    // Temas AMOLED: la foto se carga una sola vez, en 16 bits (la mitad de memoria) y se dibuja recortada.
+    private var foto: Bitmap? = null
+    private var fotoDe = 0
+    private val pincelFoto = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val matriz = Matrix()
+
+    private fun dibujarFoto(canvas: Canvas, w: Float, h: Float) {
+        canvas.drawColor(Color.BLACK)
+        val id = Tema.estilo.imagen
+        if (fotoDe != id) {
+            foto = try {
+                BitmapFactory.decodeResource(resources, id, BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGB_565 })
+            } catch (e: Throwable) { null }
+            fotoDe = id
+        }
+        val f = foto ?: return
+        val escala = maxOf(w / f.width, h / f.height)
+        matriz.setScale(escala, escala)
+        matriz.postTranslate((w - f.width * escala) / 2, (h - f.height * escala) / 2)
+        canvas.drawBitmap(f, matriz, pincelFoto)
+        // Velo a la izquierda y abajo: la hora y los nombres se leen siempre, y la foto luce a la derecha.
+        pincel.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(0xE6000000.toInt(), 0x8C000000.toInt(), 0x1A000000), floatArrayOf(0f, 0.38f, 0.7f), Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, pincel)
+        pincel.shader = LinearGradient(0f, h, 0f, h * 0.5f, 0xD9000000.toInt(), 0, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, h * 0.5f, w, h, pincel)
+        pincel.shader = null
+    }
+
+    private val pincelLinea =Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
 
     /**
      * Temas neón, estilo atardecer retro pero tranquilo: cielo del color del tema, un brillo apenas visible

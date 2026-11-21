@@ -86,22 +86,22 @@ object Pcs {
         return bien > 0
     }
 
-    /** ¿La PC contesta? Prueba algunos puertos de Windows y el ping. Llamar fuera del hilo principal. */
+    /**
+     * ¿La PC está prendida? Solo cuenta si un puerto típico de Windows acepta la conexión.
+     * Antes también contaban "conexión rechazada" y el ping de Android (que en realidad prueba el puerto 7
+     * y da "sí" con un rechazo): así, otro aparato que quedó con esa IP, o la placa de red de una PC
+     * apagada, la hacían aparecer "prendida" sin estarlo. Llamar fuera del hilo principal.
+     */
     fun prendida(pc: Pc, espera: Int = 600): Boolean {
         val ip = pc.ip.trim()
         if (ip.isBlank()) return false
         // Todas las pruebas a la vez: alcanza con que una conteste.
         val tareas = PUERTOS.map { puerto ->
             Callable {
-                try {
-                    Socket().use { it.connect(InetSocketAddress(ip, puerto), espera) }
-                } catch (e: java.net.ConnectException) {
-                    // "Conexión rechazada" también quiere decir que la PC está prendida.
-                    if (e.message?.contains("refused", true) != true) throw e
-                }
+                Socket().use { it.connect(InetSocketAddress(ip, puerto), espera) }
                 true
             }
-        } + Callable { if (InetAddress.getByName(ip).isReachable(espera)) true else throw Exception("sin ping") }
+        }
         val hilos = Executors.newFixedThreadPool(tareas.size)
         return try {
             hilos.invokeAny(tareas, espera + 400L, TimeUnit.MILLISECONDS)

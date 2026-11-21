@@ -8,6 +8,8 @@
 
     <!-- Para el pronóstico del tiempo -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Centro de Control: saber si hay conexión. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Para abrir la pantalla de vincular dispositivos Bluetooth (se pide al usarlo) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -108,5 +110,13 @@
         <receiver
             android:name=".ReceptorBotones"
             android:exported="true" />
+        <!-- Al actualizarse, vuelve a prender el servicio del botón Inicio (el Fire Stick lo deja sordo). -->
+        <receiver
+            android:name=".ReceptorActualizacion"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

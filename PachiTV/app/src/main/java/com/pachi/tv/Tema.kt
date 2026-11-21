@@ -27,7 +27,24 @@ enum class Estilo(
     val degradado: IntArray,
     val piso: Int,
     val tarjeta: Int,
+    /** Temas AMOLED (1.45): foto de fondo líquida sobre negro puro; las tarjetas son vidrio transparente. */
+    val imagen: Int = 0,
 ) {
+    PRISMA(
+        "Prisma", 0xFF000000.toInt(), 0xFF000000.toInt(),
+        intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()),
+        0, 0x24FFFFFF, R.drawable.fondo_prisma,
+    ),
+    SEDA(
+        "Seda negra", 0xFF000000.toInt(), 0xFF000000.toInt(),
+        intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()),
+        0, 0x24FFFFFF, R.drawable.fondo_seda,
+    ),
+    VINO(
+        "Vino líquido", 0xFF000000.toInt(), 0xFF000000.toInt(),
+        intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()),
+        0, 0x24FFFFFF, R.drawable.fondo_vino,
+    ),
     VICE(
         "Vice City", 0xFF0B0F2B.toInt(), 0xFF3A1258.toInt(),
         intArrayOf(0xFF17A9E5.toInt(), 0xFF6263D9.toInt(), 0xFFE53D92.toInt(), 0xFFFD7742.toInt()),
@@ -69,7 +86,15 @@ object Tema {
             p.contains("tema_vice") -> if (p.getBoolean("tema_vice", true)) Estilo.VICE else Estilo.CLASICO
             else -> porDefecto
         }
+        // 1.45: quien venía de un tema neón viejo pasa una sola vez a Prisma, el nuevo de Ziota.
+        if (porDefecto != Estilo.CLASICO && !p.getBoolean("tema_amoled_visto", false)) {
+            if (estilo != Estilo.CLASICO) estilo = Estilo.PRISMA
+            p.edit().putBoolean("tema_amoled_visto", true).putString("tema", estilo.name).apply()
+        }
     }
+
+    /** Temas con foto de fondo (Prisma, Seda negra, Vino líquido). */
+    val amoled get() = estilo.imagen != 0
 
     /** Pasa al siguiente tema: Vice City → Neon Sunset → Digital Pulse → Clásico → Vice City. */
     fun siguiente(c: Context) {
@@ -78,7 +103,19 @@ object Tema {
         c.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putString("tema", estilo.name).commit()
     }
 
-    val degradado get() = estilo.degradado
+    /** El único color de acento de cada tema: solo para lo encendido y el puntito de lo elegido. */
+    val color: Int get() = when (estilo) {
+        Estilo.PRISMA -> 0xFF7FD8FF.toInt()
+        Estilo.SEDA -> 0xFFE9E9EE.toInt()
+        Estilo.VINO -> 0xFFFF6FAE.toInt()
+        Estilo.VICE -> 0xFF4CC2FF.toInt()
+        Estilo.SUNSET -> 0xFFFF7A2E.toInt()
+        Estilo.PULSE -> 0xFFC084FC.toInt()
+        Estilo.CLASICO -> CREMA_CLASICA
+    }
+
+    /** Borde de lo enfocado: en neón, blanco liso (el color del tema va en el puntito). */
+    val degradado get() = if (neon) intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()) else estilo.degradado
     val fondo get() = estilo.fondo
 
     /** Color de selección sólido (fila del menú en el clásico, destellos y barritas de la isla). En neón, blanco: el color queda para el foco. */
@@ -166,6 +203,7 @@ class Vidrio(
     private val grosorBorde: Float = 1.5f,
     private val grosorAnillo: Float = 5f,
     anillo: IntArray? = null,
+    private val punto: Int = 0,
 ) : Drawable() {
     var anillo: IntArray? = anillo
         set(valor) {
@@ -189,6 +227,7 @@ class Vidrio(
         color = 0x2EFFFFFF
     }
     private val caja = RectF()
+    private val pPunto = Paint(Paint.ANTI_ALIAS_FLAG)
 
     override fun draw(canvas: Canvas) {
         caja.set(bounds)
@@ -222,6 +261,11 @@ class Vidrio(
         caja.inset(grosor / 2, grosor / 2)
         val ri = maxOf(0f, r - grosor / 2)
         canvas.drawRoundRect(caja, ri, ri, pBorde)
+        // Lo enfocado lleva un puntito del color del tema arriba a la derecha.
+        if (colores != null && punto != 0) {
+            pPunto.color = punto
+            canvas.drawCircle(caja.right - grosor * 4, caja.top + grosor * 4, grosor * 1.6f, pPunto)
+        }
         if (colores == null) {
             // Línea de luz arriba, sin tocar las esquinas redondeadas.
             val margen = maxOf(r, caja.width() * 0.06f)

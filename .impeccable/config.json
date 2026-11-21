@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "montserrat",
+        "createdAt": "2026-11-21T17:51:31.629Z",
+        "reason": "Surface brief for Ziota pins Montserrat only (PachiTV/.impeccable/surfaces direction contract)"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "Notas/ziota-diseno-final.html"
+        ],
+        "createdAt": "2026-11-21T17:54:21.961Z",
+        "reason": "user chose reference images with theme-colored focus glow"
+      }
+    ]
+  }
+}
