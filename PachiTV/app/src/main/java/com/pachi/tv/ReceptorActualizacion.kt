@@ -23,7 +23,18 @@ class ReceptorActualizacion : BroadcastReceiver() {
         val servicio = "${contexto.packageName}/${InicioService::class.java.name}"
         val actuales = (Settings.Secure.getString(r, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "")
             .split(':').filter { it.isNotBlank() }
-        if (servicio !in actuales) return // no estaba prendido: no se toca
+        // Si el sistema lo sacó de la lista al actualizar, se vuelve a poner, pero solo si estaba prendido antes
+        // (lo anota el servicio al conectarse; si lo apagaste desde Ajustes, queda apagado).
+        val estaba = contexto.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean("boton_inicio", false)
+        if (servicio !in actuales) {
+            if (!estaba) return
+            try {
+                Settings.Secure.putString(r, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (actuales + servicio).joinToString(":"))
+                Settings.Secure.putInt(r, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+            } catch (_: Exception) {
+            }
+            return
+        }
         val pendiente = goAsync()
         try {
             Settings.Secure.putString(r, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (actuales - servicio).joinToString(":"))

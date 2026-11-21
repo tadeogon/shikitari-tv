@@ -69,6 +69,8 @@ class InicioService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         vivo = true
+        // Se anota que estaba prendido: si una actualización lo apaga, Ziota sabe que tiene que volver a prenderlo.
+        getSharedPreferences("launcher", MODE_PRIVATE).edit().putBoolean("boton_inicio", true).apply()
         // Solo en Fire TV: ahí los botones de apps no pasan por onKeyEvent (ver Botones.destinoFire).
         if (Build.MANUFACTURER.equals("Amazon", ignoreCase = true)) Thread({ vigilarBotonesFire() }, "botones-fire").start()
     }
