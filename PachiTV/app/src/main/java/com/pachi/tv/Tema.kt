@@ -16,9 +16,8 @@ import android.graphics.drawable.Drawable
 import android.view.View
 
 /**
- * Temas de Ziota. Los tres "neón" (Vice City, Neon Sunset y Digital Pulse) comparten el mismo dibujo:
- * cielo, un brillo suave en el horizonte y una cuadrícula tenue en el piso. El degradado del tema es el único
- * color fuerte de la pantalla y solo marca lo enfocado. "Clásico" es el de siempre (casi negro con selección crema).
+ * Temas de Ziota: Prisma, Seda negra y Vino líquido (AMOLED: foto de fondo sobre negro puro y tarjetas de vidrio).
+ * "Clásico" (casi negro con selección crema) es el de Solari.
  */
 enum class Estilo(
     val nombre: String,
@@ -45,21 +44,6 @@ enum class Estilo(
         intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()),
         0, 0x24FFFFFF, R.drawable.fondo_vino,
     ),
-    VICE(
-        "Vice City", 0xFF0B0F2B.toInt(), 0xFF3A1258.toInt(),
-        intArrayOf(0xFF17A9E5.toInt(), 0xFF6263D9.toInt(), 0xFFE53D92.toInt(), 0xFFFD7742.toInt()),
-        0xFFE53D92.toInt(), 0xE61C1F4D.toInt(),
-    ),
-    SUNSET(
-        "Neon Sunset", 0xFF0A0A12.toInt(), 0xFF4A0C2E.toInt(),
-        intArrayOf(0xFFFF0F7B.toInt(), 0xFFFF5C00.toInt(), 0xFFFFD000.toInt(), 0xFFA8E000.toInt()),
-        0xFFFF0F7B.toInt(), 0xE6221426.toInt(),
-    ),
-    PULSE(
-        "Digital Pulse", 0xFF0F172A.toInt(), 0xFF2E1065.toInt(),
-        intArrayOf(0xFFDDD6FE.toInt(), 0xFFF472B6.toInt(), 0xFFC084FC.toInt()),
-        0xFFF472B6.toInt(), 0xE6221B4A.toInt(),
-    ),
     CLASICO(
         "Clásico", 0xFF0B0B0F.toInt(), 0xFF0B0B0F.toInt(),
         intArrayOf(0xFFF3E9D2.toInt(), 0xFFF3E9D2.toInt()),
@@ -70,47 +54,45 @@ enum class Estilo(
 object Tema {
     const val CREMA_CLASICA = 0xFFF3E9D2.toInt()
 
-    var estilo = Estilo.VICE
+    var estilo = Estilo.PRISMA
         private set
 
     /** Cualquiera de los temas neón (no el clásico). */
     val neon get() = estilo != Estilo.CLASICO
 
-    /** [porDefecto]: Ziota arranca en Vice City; Solari (versión formal) se queda en el clásico. */
+    /** Los que se pueden elegir: en Ziota, los tres AMOLED; Solari (versión formal) suma el clásico, que es el suyo. */
+    fun disponibles(formal: Boolean): List<Estilo> =
+        if (formal) Estilo.values().sortedBy { it != Estilo.CLASICO } else Estilo.values().filter { it != Estilo.CLASICO }
+
+    /** Un tema guardado que ya no existe (los neón viejos) o que no corresponde pasa al [porDefecto]. */
     fun cargar(c: Context, porDefecto: Estilo) {
         val p = c.getSharedPreferences("launcher", Context.MODE_PRIVATE)
-        val guardado = p.getString("tema", null)
-        estilo = when {
-            guardado != null -> Estilo.values().firstOrNull { it.name == guardado } ?: porDefecto
-            // La versión 1.30 guardaba solo sí/no.
-            p.contains("tema_vice") -> if (p.getBoolean("tema_vice", true)) Estilo.VICE else Estilo.CLASICO
-            else -> porDefecto
-        }
-        // 1.45: quien venía de un tema neón viejo pasa una sola vez a Prisma, el nuevo de Ziota.
-        if (porDefecto != Estilo.CLASICO && !p.getBoolean("tema_amoled_visto", false)) {
-            if (estilo != Estilo.CLASICO) estilo = Estilo.PRISMA
-            p.edit().putBoolean("tema_amoled_visto", true).putString("tema", estilo.name).apply()
-        }
+        val guardado = Estilo.values().firstOrNull { it.name == p.getString("tema", null) }
+        estilo = if (guardado != null && guardado in disponibles(porDefecto == Estilo.CLASICO)) guardado else porDefecto
     }
 
     /** Temas con foto de fondo (Prisma, Seda negra, Vino líquido). */
     val amoled get() = estilo.imagen != 0
 
-    /** Pasa al siguiente tema: Vice City → Neon Sunset → Digital Pulse → Clásico → Vice City. */
-    fun siguiente(c: Context) {
-        val todos = Estilo.values()
-        estilo = todos[(estilo.ordinal + 1) % todos.size]
-        c.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putString("tema", estilo.name).commit()
+    fun descripcion(e: Estilo) = when (e) {
+        Estilo.PRISMA -> "Negro puro con reflejos de colores y acento celeste."
+        Estilo.SEDA -> "Negro puro con pliegues de seda y acento plateado."
+        Estilo.VINO -> "Negro puro con líquido color vino y acento rosa."
+        Estilo.CLASICO -> "Casi negro, con la selección color crema."
+    }
+
+    fun elegir(c: Context, nuevo: Estilo) {
+        estilo = nuevo
+        c.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putString("tema", nuevo.name).commit()
     }
 
     /** El único color de acento de cada tema: solo para lo encendido y el puntito de lo elegido. */
-    val color: Int get() = when (estilo) {
+    val color: Int get() = colorDe(estilo)
+
+    fun colorDe(e: Estilo): Int = when (e) {
         Estilo.PRISMA -> 0xFF7FD8FF.toInt()
         Estilo.SEDA -> 0xFFE9E9EE.toInt()
         Estilo.VINO -> 0xFFFF6FAE.toInt()
-        Estilo.VICE -> 0xFF4CC2FF.toInt()
-        Estilo.SUNSET -> 0xFFFF7A2E.toInt()
-        Estilo.PULSE -> 0xFFC084FC.toInt()
         Estilo.CLASICO -> CREMA_CLASICA
     }
 

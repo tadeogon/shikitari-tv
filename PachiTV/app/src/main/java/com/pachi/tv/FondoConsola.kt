@@ -8,7 +8,6 @@ import android.graphics.Matrix
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
@@ -50,82 +49,53 @@ class FondoConsola(context: Context) : View(context) {
             dibujarFoto(canvas, w, h)
             return
         }
-        if (Tema.neon) {
-            // Rediseño 1.43: fondo liso del tema, sin cuadrícula ni brillo; lo único que resalta es lo enfocado.
-            canvas.drawColor(Tema.fondo)
-            return
-        }
         canvas.drawColor(BASE)
         pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.52f, color, BASE, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h * 0.52f, pincel)
         pincel.shader = null
     }
 
-    // Temas AMOLED: la foto se carga una sola vez, en 16 bits (la mitad de memoria) y se dibuja recortada.
-    private var foto: Bitmap? = null
-    private var fotoDe = 0
-    private val pincelFoto = Paint(Paint.FILTER_BITMAP_FLAG)
-    private val matriz = Matrix()
+    // Temas AMOLED: la foto con su velo se arma UNA vez en una imagen de 16 bits del tamaño de la pantalla.
+    // Antes cada cuadro estiraba la foto y pintaba dos degradados encima: mucho trabajo para el Fire Stick.
+    private var armada: Bitmap? = null
+    private var armadaDe = 0
 
     private fun dibujarFoto(canvas: Canvas, w: Float, h: Float) {
-        canvas.drawColor(Color.BLACK)
         val id = Tema.estilo.imagen
-        if (fotoDe != id) {
-            foto = try {
-                BitmapFactory.decodeResource(resources, id, BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGB_565 })
-            } catch (e: Throwable) { null }
-            fotoDe = id
+        val actual = armada
+        if (actual == null || armadaDe != id || actual.width != width || actual.height != height) {
+            armada = armar(id, w, h)
+            armadaDe = id
         }
-        val f = foto ?: return
-        val escala = maxOf(w / f.width, h / f.height)
-        matriz.setScale(escala, escala)
-        matriz.postTranslate((w - f.width * escala) / 2, (h - f.height * escala) / 2)
-        canvas.drawBitmap(f, matriz, pincelFoto)
-        // Velo a la izquierda y abajo: la hora y los nombres se leen siempre, y la foto luce a la derecha.
-        pincel.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(0xE6000000.toInt(), 0x8C000000.toInt(), 0x1A000000), floatArrayOf(0f, 0.38f, 0.7f), Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, w, h, pincel)
-        pincel.shader = LinearGradient(0f, h, 0f, h * 0.5f, 0xD9000000.toInt(), 0, Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, h * 0.5f, w, h, pincel)
-        pincel.shader = null
+        val lista = armada
+        if (lista != null) canvas.drawBitmap(lista, 0f, 0f, null) else canvas.drawColor(Color.BLACK)
     }
 
-    private val pincelLinea =Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
-
-    /**
-     * Temas neón, estilo atardecer retro pero tranquilo: cielo del color del tema, un brillo apenas visible
-     * en el horizonte y una cuadrícula tenue en el piso que se desvanece hacia arriba. Nada compite con las apps.
-     */
-    private fun dibujarNeon(canvas: Canvas, w: Float, h: Float, e: Estilo) {
-        canvas.drawColor(e.fondo)
-        val arriba = mezclar(e.cielo, e.fondo, 0.3f)
-        pincel.shader = LinearGradient(0f, 0f, 0f, h * 0.7f, intArrayOf(arriba, mezclar(arriba, e.fondo, 0.6f), e.fondo),
-            floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, w, h * 0.7f, pincel)
-
-        // Brillo suave sobre el horizonte, en vez del sol.
-        val horizonte = h * 0.76f
-        val color = e.piso and 0x00FFFFFF
-        pincel.shader = RadialGradient(w / 2, horizonte, w * 0.42f, (color or 0x1F000000), color, Shader.TileMode.CLAMP)
-        canvas.save()
-        canvas.scale(1f, 0.22f, w / 2, horizonte)
-        canvas.drawCircle(w / 2, horizonte, w * 0.42f, pincel)
-        canvas.restore()
-        pincel.shader = null
-
-        // Piso: cuadrícula tenue que se aclara hacia adelante y desaparece en el horizonte.
-        pincelLinea.shader = LinearGradient(0f, horizonte, 0f, h, color, color or 0x2E000000, Shader.TileMode.CLAMP)
-        for (k in 1..7) {
-            val t = k / 7f
-            val yy = horizonte + (h - horizonte) * t * t
-            canvas.drawLine(0f, yy, w, yy, pincelLinea)
+    private fun armar(id: Int, w: Float, h: Float): Bitmap? = try {
+        val f = BitmapFactory.decodeResource(resources, id, BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGB_565 })
+        Bitmap.createBitmap(w.toInt(), h.toInt(), Bitmap.Config.RGB_565).also { bmp ->
+            val c = Canvas(bmp)
+            c.drawColor(Color.BLACK)
+            val escala = maxOf(w / f.width, h / f.height)
+            val matriz = Matrix()
+            matriz.setScale(escala, escala)
+            matriz.postTranslate((w - f.width * escala) / 2, (h - f.height * escala) / 2)
+            c.drawBitmap(f, matriz, Paint(Paint.FILTER_BITMAP_FLAG).apply { isDither = true })
+            f.recycle()
+            // Velo a la izquierda y abajo: la hora y los nombres se leen siempre, y la foto luce a la derecha.
+            pincel.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(0xE6000000.toInt(), 0x8C000000.toInt(), 0x1A000000), floatArrayOf(0f, 0.38f, 0.7f), Shader.TileMode.CLAMP)
+            c.drawRect(0f, 0f, w, h, pincel)
+            pincel.shader = LinearGradient(0f, h, 0f, h * 0.5f, 0xD9000000.toInt(), 0, Shader.TileMode.CLAMP)
+            c.drawRect(0f, h * 0.5f, w, h, pincel)
+            pincel.shader = null
         }
-        val fuga = horizonte - (h - horizonte) * 0.6f
-        val proporcion = (horizonte - fuga) / (h - fuga)
-        for (j in -12..12) {
-            val abajo = w / 2 + j * w * 0.09f
-            val enHorizonte = w / 2 + (abajo - w / 2) * proporcion
-            canvas.drawLine(enHorizonte, horizonte, abajo, h, pincelLinea)
-        }
+    } catch (e: Throwable) {
+        null // sin memoria: queda negro
+    }
+
+    /** Con otra app adelante no hace falta: se suelta y al volver se arma de nuevo. */
+    fun soltar() {
+        armada = null
     }
 
     private fun mezclar(a: Int, b: Int, t: Float) = Color.rgb(

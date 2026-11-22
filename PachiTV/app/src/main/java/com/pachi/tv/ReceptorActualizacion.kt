@@ -25,7 +25,7 @@ class ReceptorActualizacion : BroadcastReceiver() {
             .split(':').filter { it.isNotBlank() }
         // Si el sistema lo sacó de la lista al actualizar, se vuelve a poner, pero solo si estaba prendido antes
         // (lo anota el servicio al conectarse; si lo apagaste desde Ajustes, queda apagado).
-        val estaba = contexto.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean("boton_inicio", false)
+        val estaba = contexto.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean("servicio_antes", false)
         if (servicio !in actuales) {
             if (!estaba) return
             try {

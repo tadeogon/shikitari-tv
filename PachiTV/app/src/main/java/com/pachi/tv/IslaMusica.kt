@@ -328,6 +328,9 @@ class IslaMusica(context: Context, private val alIrse: () -> Unit) : LinearLayou
 
     val hayMusica get() = controlador != null || dormida
 
+    /** La última app de música que sonó, aunque ahora esté en pausa. */
+    val ultimaApp: String? get() = guardado.getString("isla_paquete", null)
+
     /** App que está sonando (null si no hay ninguna). */
     val appActual: String? get() = controlador?.packageName
 

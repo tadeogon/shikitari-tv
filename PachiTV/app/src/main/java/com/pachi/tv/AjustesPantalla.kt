@@ -31,7 +31,11 @@ class AjustesPantalla(
     private val secciones: List<Seccion>,
 ) : FrameLayout(context) {
 
-    class Seccion(val icono: Int, val color: Int, val titulo: String, val explicacion: String, val opciones: List<Opcion>)
+    /** [padre]: si está adentro de otra sección, Atrás vuelve a esa. [elegida]: cuál queda marcada al entrar. */
+    class Seccion(
+        val icono: Int, val color: Int, val titulo: String, val explicacion: String, val opciones: List<Opcion>,
+        val padre: (() -> Seccion)? = null, val elegida: () -> Int = { 0 },
+    )
 
     class Opcion(
         val icono: Int,
@@ -101,7 +105,8 @@ class AjustesPantalla(
     /** Atrás: desde una sección vuelve a la lista. Devuelve false si ya estaba en la lista (hay que cerrar). */
     fun atras(): Boolean {
         val s = abierta ?: return false
-        mostrarMenu(s)
+        val padre = s.padre
+        if (padre != null) mostrarSeccion(padre()) else mostrarMenu(s)
         return true
     }
 
@@ -120,13 +125,14 @@ class AjustesPantalla(
         terminarLista(elegir)
     }
 
-    private fun mostrarSeccion(s: Seccion) {
+    fun mostrarSeccion(s: Seccion) {
         abierta = s
         empezarLista(s.titulo, "Atrás vuelve a Ajustes. Los cambios se aplican al momento.")
-        for (o in s.opciones) {
+        val marcada = s.elegida()
+        s.opciones.forEachIndexed { i, o ->
             val v = fila(o)
             lista.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)).apply { bottomMargin = dp(4) })
-            if (primera == null) primera = v
+            if (primera == null || i == marcada) primera = v
         }
         terminarLista(null)
     }

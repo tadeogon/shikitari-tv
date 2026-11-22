@@ -44,22 +44,28 @@ class InicioService : AccessibilityService() {
         ultimaClase = clase
         if (!esInicio(clase)) return
         traerZiota()
-        // Con dos Inicio seguidos, el Fire Stick a veces deja su pantalla arriba después de que Ziota se abrió.
-        // Se revisa un rato después y, si Ziota no quedó adelante, se la vuelve a traer.
-        principal.removeCallbacks(revisar)
-        principal.postDelayed(revisar, 900)
     }
 
     private fun esInicio(clase: String) = clase.contains("Home") || clase.contains("MainActivity")
 
-    // El reintento va sin la marca de Inicio: si no, Ziota lo contaría como un segundo Inicio y abriría Apps abiertas.
-    private val revisar = Runnable { if (!MainActivity.adelante) traerZiota(comoInicio = false) }
+    /** Hasta cuándo no traer Ziota: un botón remapeado está abriendo su app y no hay que taparla. */
+    @Volatile private var silencioHasta = 0L
+    private var ultimoTraer = 0L
 
-    private fun traerZiota(comoInicio: Boolean = true) = startActivity(
-        Intent(this, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            .putExtra(MainActivity.EXTRA_DESDE_HOME, comoInicio),
-    )
+    // Nunca se trae Ziota "por las dudas" un rato después (así era en 1.44-1.46): este servicio solo ve los
+    // launchers, no sabe si mientras tanto se abrió otra app, y la terminaba tapando.
+    private fun traerZiota(comoInicio: Boolean = true) {
+        val ahora = android.os.SystemClock.uptimeMillis()
+        if (ahora < silencioHasta) return
+        // El Fire Stick avisa dos veces por cada Inicio: alcanza con una.
+        if (ahora - ultimoTraer < 200) return
+        ultimoTraer = ahora
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                .putExtra(MainActivity.EXTRA_DESDE_HOME, comoInicio),
+        )
+    }
 
     private val principal = Handler(Looper.getMainLooper())
     @Volatile
@@ -69,10 +75,16 @@ class InicioService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         vivo = true
-        // Se anota que estaba prendido: si una actualización lo apaga, Ziota sabe que tiene que volver a prenderlo.
-        getSharedPreferences("launcher", MODE_PRIVATE).edit().putBoolean("boton_inicio", true).apply()
+        // Se anota que estaba prendido, para volver a prenderlo si una actualización lo apaga (ReceptorActualizacion).
+        getSharedPreferences("launcher", MODE_PRIVATE).edit().putBoolean("servicio_antes", true).apply()
         // Solo en Fire TV: ahí los botones de apps no pasan por onKeyEvent (ver Botones.destinoFire).
         if (Build.MANUFACTURER.equals("Amazon", ignoreCase = true)) Thread({ vigilarBotonesFire() }, "botones-fire").start()
+    }
+
+    /** Lo apagaron a propósito (una actualización corta el proceso y no pasa por acá): no se vuelve a prender solo. */
+    override fun onUnbind(intent: Intent?): Boolean {
+        getSharedPreferences("launcher", MODE_PRIVATE).edit().putBoolean("servicio_antes", false).apply()
+        return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
@@ -96,6 +108,7 @@ class InicioService : AccessibilityService() {
                     for (linea in lineas) {
                         if (!vivo) break
                         val destino = Botones.destinoFire(this, linea) ?: continue
+                        silencioHasta = android.os.SystemClock.uptimeMillis() + 2500
                         // Amazon abre su pantalla un instante después; se abre la elegida al rato y otra vez por las dudas.
                         principal.postDelayed({ abrir(destino) }, 450)
                         principal.postDelayed({ abrir(destino) }, 1400)
@@ -108,14 +121,6 @@ class InicioService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        // Si la pantalla de Amazon ya está arriba, apretar Inicio no la cambia y no llega ningún aviso:
-        // por eso también se mira el botón. Se deja pasar (no se atrapa) y, si al rato Ziota no está
-        // adelante, se la trae.
-        if (event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_UP) {
-            principal.removeCallbacks(revisar)
-            principal.postDelayed(revisar, 900)
-            return false
-        }
         val destino = Botones.destino(this, event.keyCode) ?: return false
         // Se atrapan el "apretar" y el "soltar"; la app se abre al soltar, una sola vez.
         if (event.action == KeyEvent.ACTION_UP && event.repeatCount == 0) abrir(destino)

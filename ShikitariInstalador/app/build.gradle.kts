@@ -12,8 +12,8 @@ android {
         applicationId = "com.shikitari.instalador.nuevo"
         minSdk = 26
         targetSdk = 35
-        versionCode = 22
-        versionName = "3.6"
+        versionCode = 23
+        versionName = "3.7"
     }
 
     buildTypes {

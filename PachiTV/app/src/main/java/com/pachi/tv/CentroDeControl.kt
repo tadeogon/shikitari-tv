@@ -266,6 +266,7 @@ class CentroDeControl(context: Context, fondo: Bitmap?, private val acciones: Ac
         }) {}
         vista.addView(texto("", 40f, Color.WHITE, true).apply { gravity = Gravity.CENTER; tag = "nivel" }, 0)
         if (fijo) return
+        val releer = Runnable { pintarNivel(vista) }
         vista.setOnKeyListener { _, codigo, evento ->
             if (evento.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             val direccion = when (codigo) {
@@ -275,22 +276,33 @@ class CentroDeControl(context: Context, fondo: Bitmap?, private val acciones: Ac
             }
             val antes = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
             audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direccion, 0)
-            if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) == antes) {
+            // Por Bluetooth, si no cambió es que ya está al máximo o en cero: no hay tecla que mandar.
+            if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) == antes && !suenaPorBluetooth()) {
                 // Con el sonido saliendo por la tele (HDMI), Android no deja tocar su volumen: se manda
                 // la tecla de volumen como si fuera el control, y el Fire Stick se la pasa a la tele.
                 val tecla = if (direccion == AudioManager.ADJUST_RAISE) KeyEvent.KEYCODE_VOLUME_UP else KeyEvent.KEYCODE_VOLUME_DOWN
                 audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, tecla))
                 audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, tecla))
             }
-            // Solo se repintan los cuadros: redibujar las notificaciones por cada toque las hacía titilar.
-            pintarModulos()
+            // Solo cambia el número: repintar los diez cuadros por cada toque (y otra vez al rato) era lo que
+            // hacía trabajar de más y subir la memoria al dejar apretado.
+            pintarNivel(vista)
             // Algunas salidas (Bluetooth) tardan un instante en informar el número nuevo.
-            vista.postDelayed({ pintarModulos() }, 250)
+            vista.removeCallbacks(releer)
+            vista.postDelayed(releer, 250)
             true
         }
         // Al abrir, el primer número a veces sale viejo: se relee enseguida.
-        vista.postDelayed({ pintarModulos() }, 300)
+        vista.postDelayed(releer, 300)
     }
+
+    private fun pintarNivel(vista: View) {
+        vista.findViewWithTag<TextView>("nivel")?.text =
+            if (audio.isVolumeFixed) "–" else audio.getStreamVolume(AudioManager.STREAM_MUSIC).toString()
+    }
+
+    private fun suenaPorBluetooth(): Boolean = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        .any { it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
 
     fun refrescar() {
         pintarModulos()

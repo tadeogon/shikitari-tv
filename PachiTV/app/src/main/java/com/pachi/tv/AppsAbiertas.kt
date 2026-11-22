@@ -24,6 +24,9 @@ import java.util.Locale
  * ← → se mueve, OK la abre, ↑ la cierra, ↓ la protege; a la derecha, "Cerrar todo" con la memoria.
  * Se abre con Inicio dos veces.
  *
+ * En Fire TV ninguna app puede cerrar a otra (ver [SOLO_DESDE_AJUSTES]): ahí ↑ abre la información de esa app en los
+ * ajustes del Fire Stick (para tocar "Forzar detención") y el botón de la derecha, la lista de todas las apps.
+ *
  * Protegidas: las que elegiste con ↓ y la que está sonando música nunca se cierran (ni con "Cerrar todo").
  * Las de [NUNCA_MOSTRAR] (como WOL Puente, que prende la PC) ni aparecen, para no cerrarlas sin querer.
  * La idea viene de Aura TV (github.com/cookedzera/aura-tv, licencia MIT); el código es propio de Ziota.
@@ -43,8 +46,13 @@ class AppsAbiertas(
         val icono: (String) -> Drawable?,
         val logo: (String) -> Drawable?,
         val abrir: (String) -> Unit,
+        /** Solo Fire TV: la información de una app y la lista de todas, en los ajustes de la tele. */
+        val informacion: (String) -> Unit,
+        val todas: () -> Unit,
         /** La app que está pasando música ahora (se protege sola). */
-        val musica: String? = null,
+        val musica: () -> String? = { null },
+        /** La última app de música, aunque esté en pausa: «Cerrar todo» la deja; con ↑ sí se puede cerrar. */
+        val ultimaMusica: () -> String? = { null },
     )
 
     private class Abierta(val pkg: String, val cuando: Long)
@@ -52,7 +60,7 @@ class AppsAbiertas(
     private val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
     private val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
     private val elegidas = prefs.getStringSet(CLAVE_PROTEGIDAS, emptySet())!!.toMutableSet()
-    private fun protegida(pkg: String) = pkg in elegidas || pkg == app.musica
+    private fun protegida(pkg: String) = (!SOLO_DESDE_AJUSTES && pkg in elegidas) || pkg == app.musica()
     private val lista = buscar().toMutableList()
     private var indice = 0
     private var enBoton = false
@@ -63,7 +71,7 @@ class AppsAbiertas(
     private val cartas = Array(3) { FrameLayout(context) }
     private val logos = Array(3) { ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER } }
     private val boton = FrameLayout(context)
-    private val iconoBoton = ImageView(context).apply { setImageResource(R.drawable.ic_borrar) }
+    private val iconoBoton = ImageView(context).apply { setImageResource(if (SOLO_DESDE_AJUSTES) R.drawable.ic_apps else R.drawable.ic_borrar) }
     private val memoria = texto(14f, CentroDeControl.GRIS).apply { gravity = Gravity.CENTER }
     private val barra = View(context)
     private val vacio = texto(18f, CentroDeControl.GRIS).apply { gravity = Gravity.CENTER; text = "No hay apps abiertas" }
@@ -101,7 +109,7 @@ class AppsAbiertas(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             addView(boton, LinearLayout.LayoutParams(dp(72), dp(72)))
-            addView(texto(15f, Color.WHITE, true).apply { text = "Cerrar todo"; gravity = Gravity.CENTER; setPadding(0, dp(16), 0, dp(24)) },
+            addView(texto(15f, Color.WHITE, true).apply { text = if (SOLO_DESDE_AJUSTES) "Todas las apps" else "Cerrar todo"; gravity = Gravity.CENTER; setPadding(0, dp(16), 0, dp(24)) },
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(memoria)
             addView(FrameLayout(context).apply {
@@ -113,7 +121,8 @@ class AppsAbiertas(
         addView(vacio, LayoutParams(dp(ANCHO), dp(ALTO)).apply { leftMargin = dp(128); topMargin = dp(120) })
         addView(texto(13f, CentroDeControl.GRIS).apply {
             gravity = Gravity.CENTER
-            text = "OK abre  ·  ↑ cierra esta app  ·  ↓ la protege  ·  → Cerrar todo  ·  Atrás vuelve"
+            text = if (SOLO_DESDE_AJUSTES) "OK abre  ·  ↑ cerrarla (en «Forzar detención»)  ·  → Todas las apps  ·  Atrás vuelve"
+            else "OK abre  ·  ↑ cierra esta app  ·  ↓ la protege  ·  → Cerrar todo  ·  Atrás vuelve"
         }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply { bottomMargin = dp(24) })
         enBoton = lista.isEmpty()
         pintar()
@@ -127,11 +136,13 @@ class AppsAbiertas(
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT -> if (enBoton) { if (lista.isNotEmpty()) enBoton = false } else indice = minOf(indice + 1, lista.lastIndex)
             KeyEvent.KEYCODE_DPAD_RIGHT -> if (!enBoton) { if (indice > 0) indice-- else enBoton = true }
-            KeyEvent.KEYCODE_DPAD_UP -> if (!enBoton && lista.isNotEmpty()) cerrarUna()
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (!enBoton) lista.getOrNull(indice)?.let { alternarProteccion(it.pkg) }
+            KeyEvent.KEYCODE_DPAD_UP -> if (!enBoton && lista.isNotEmpty()) {
+                if (!SOLO_DESDE_AJUSTES) cerrarUna() else if (event.repeatCount == 0) app.informacion(lista[indice].pkg)
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (!enBoton && !SOLO_DESDE_AJUSTES) lista.getOrNull(indice)?.let { alternarProteccion(it.pkg) }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                 if (event.repeatCount > 0) return true // mantener OK no hace nada raro
-                if (enBoton) cerrarTodo() else lista.getOrNull(indice)?.let { app.abrir(it.pkg) }
+                if (enBoton) { if (SOLO_DESDE_AJUSTES) app.todas() else cerrarTodo() } else lista.getOrNull(indice)?.let { app.abrir(it.pkg) }
                 return true
             }
             else -> return true
@@ -147,8 +158,8 @@ class AppsAbiertas(
         nombre.text = actual?.let { app.nombre(it.pkg) } ?: ""
         cuando.text = when {
             actual == null -> ""
-            actual.pkg == app.musica -> "Pasando música · no se cierra"
-            actual.pkg in elegidas -> "Protegida · no se cierra  (↓ para sacarla)"
+            actual.pkg == app.musica() -> if (SOLO_DESDE_AJUSTES) "Pasando música · si la cerrás, se corta" else "Pasando música · no se cierra"
+            !SOLO_DESDE_AJUSTES && actual.pkg in elegidas -> "Protegida · no se cierra  (↓ para sacarla)"
             actual.cuando == 0L -> if (indice == 0) "La última que usaste" else ""
             System.currentTimeMillis() - actual.cuando < DateUtils.MINUTE_IN_MILLIS -> "Ahora mismo"
             else -> DateUtils.getRelativeTimeSpanString(actual.cuando, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
@@ -178,9 +189,27 @@ class AppsAbiertas(
     }
 
     private fun alternarProteccion(pkg: String) {
-        if (pkg == app.musica) return // la de la música se protege sola mientras suena
+        if (pkg == app.musica()) return // la de la música se protege sola mientras suena
         if (!elegidas.remove(pkg)) elegidas += pkg
         prefs.edit().putStringSet(CLAVE_PROTEGIDAS, elegidas.toSet()).apply()
+    }
+
+    private fun cerrar(pkgs: List<String>) {
+        for (p in pkgs) am.killBackgroundProcesses(p)
+        sacar(pkgs.toSet())
+    }
+
+    private fun sacar(pkgs: Set<String>) {
+        for (p in pkgs) anotarCerrada(p)
+        lista.removeAll { it.pkg in pkgs }
+        indice = indice.coerceIn(0, maxOf(0, lista.size - 1))
+        if (lista.isEmpty()) enBoton = true
+    }
+
+    /** Se anota cuándo se cerró: si no, al volver a entrar la lista la mostraba otra vez como abierta. */
+    private fun anotarCerrada(pkg: String) {
+        val quedan = cerradas(context).filterKeys { it != pkg } + (pkg to System.currentTimeMillis())
+        prefs.edit().putStringSet(CLAVE_CERRADAS, quedan.map { "${it.key}=${it.value}" }.toSet()).apply()
     }
 
     private fun cerrarUna() {
@@ -191,20 +220,13 @@ class AppsAbiertas(
             }.start()
             return
         }
-        val a = lista.removeAt(indice)
-        am.killBackgroundProcesses(a.pkg)
-        indice = indice.coerceAtMost((lista.size - 1).coerceAtLeast(0))
-        if (lista.isEmpty()) enBoton = true
+        cerrar(listOf(lista[indice].pkg))
         postDelayed({ pintarMemoria(null) }, 800)
     }
 
     private fun cerrarTodo() {
         val antes = libre()
-        lista.removeAll { a ->
-            if (protegida(a.pkg)) false else { am.killBackgroundProcesses(a.pkg); true }
-        }
-        indice = 0
-        if (lista.isEmpty()) enBoton = true
+        cerrar(lista.map { it.pkg }.filterNot { protegida(it) || it == app.ultimaMusica() })
         pintar()
         postDelayed({ pintarMemoria((libre() - antes).coerceAtLeast(0)) }, 1500)
     }
@@ -223,7 +245,11 @@ class AppsAbiertas(
     /** Últimas apps usadas: con el permiso de uso, las de las últimas 6 horas; si no, la lista de Ziota. */
     private fun buscar(): List<Abierta> {
         val propio = context.packageName
-        fun mostrable(pkg: String) = pkg != propio && pkg !in NUNCA_MOSTRAR
+        fun mostrable(pkg: String) = pkg != propio && sePuedeCerrar(context, pkg)
+        // Las que cerraste no vuelven a aparecer hasta que las uses de nuevo.
+        val cerradas = cerradas(context)
+        fun abierta(pkg: String, cuando: Long) =
+            if (SOLO_DESDE_AJUSTES) !detenida(context, pkg) else cerradas[pkg].let { it == null || cuando > it }
         try {
             val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val ahora = System.currentTimeMillis()
@@ -231,11 +257,12 @@ class AppsAbiertas(
                 .filter { it.lastTimeUsed > ahora - 6 * DateUtils.HOUR_IN_MILLIS && mostrable(it.packageName) && it.totalTimeInForeground > 0 }
                 .groupBy { it.packageName }.map { (pkg, s) -> Abierta(pkg, s.maxOf { it.lastTimeUsed }) }
                 .filter { context.packageManager.getLaunchIntentForPackage(it.pkg) != null || context.packageManager.getLeanbackLaunchIntentForPackage(it.pkg) != null }
+                .filter { abierta(it.pkg, it.cuando) }
                 .sortedByDescending { it.cuando }
             if (usadas.isNotEmpty()) return usadas.take(MAXIMO)
         } catch (e: Exception) {
         }
-        return app.recientes.filter { mostrable(it) }.take(MAXIMO).map { Abierta(it, 0L) }
+        return app.recientes.filter { mostrable(it) && abierta(it, 0L) }.take(MAXIMO).map { Abierta(it, 0L) }
     }
 
     private fun redondo(color: Int, radio: Int) = GradientDrawable().apply {
@@ -255,6 +282,45 @@ class AppsAbiertas(
     companion object {
         /** Apps que trabajan de fondo y no hay que cerrar nunca: ni se muestran. */
         val NUNCA_MOSTRAR = setOf("ar.wolpuente")
+        /** "cerradas2": la lista de la 1.47 anotaba también apps que en realidad no se habían cerrado. */
+        private const val CLAVE_CERRADAS = "cerradas2"
+        /** En Fire TV vienen con el sistema, pero son apps comunes. */
+        private val DEL_SISTEMA_COMUNES = setOf("com.amazon.firebat", "com.amazon.cloud9", "com.netflix.ninja", "com.google.android.youtube.tv")
+
+        /**
+         * Fire TV: el pedido común de Android (killBackgroundProcesses) se rechaza siempre, y Amazon no deja que una
+         * app use el ADB de la propia tele. Solo se puede cerrar desde los ajustes del Fire Stick (o desde el celular).
+         */
+        val SOLO_DESDE_AJUSTES = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
+
+        /** "Forzar detención" deja esta marca en la app hasta que se la vuelve a abrir. */
+        private fun detenida(c: Context, pkg: String) = try {
+            c.packageManager.getApplicationInfo(pkg, 0).flags and android.content.pm.ApplicationInfo.FLAG_STOPPED != 0
+        } catch (e: Exception) {
+            true
+        }
+
+        /** Nunca las que trabajan de fondo, ni pantallas de inicio, ni partes del sistema. */
+        fun sePuedeCerrar(c: Context, pkg: String): Boolean {
+            if (pkg in NUNCA_MOSTRAR || pkg == c.packageName) return false
+            if (!SOLO_DESDE_AJUSTES || pkg in DEL_SISTEMA_COMUNES) return true
+            return try {
+                c.packageManager.getApplicationInfo(pkg, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM == 0
+            } catch (e: Exception) {
+                false
+            }
+        }
+        private fun cerradas(c: Context): Map<String, Long> =
+            (c.getSharedPreferences("launcher", Context.MODE_PRIVATE).getStringSet(CLAVE_CERRADAS, null) ?: emptySet())
+                .associate { it.substringBefore('=') to (it.substringAfter('=').toLongOrNull() ?: 0L) }
+
+        /** Se volvió a abrir desde Ziota: puede aparecer de nuevo. */
+        fun seAbrio(c: Context, pkg: String) {
+            val antes = cerradas(c)
+            if (pkg !in antes) return
+            c.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit()
+                .putStringSet(CLAVE_CERRADAS, antes.filterKeys { it != pkg }.map { "${it.key}=${it.value}" }.toSet()).apply()
+        }
         const val CLAVE_PROTEGIDAS = "protegidas"
         private const val VERDE = 0xFF4ADE80.toInt()
         const val ANCHO = 600

@@ -248,3 +248,30 @@ INSTALADOR Shikitari Instalador 3.5 (lleva Ziota/Solari 1.45). APKs/ actualizado
 NOTA      el reinstalar apagó el servicio de accesibilidad de Ziota (botón Inicio); se volvió a prender por ADB (settings put secure enabled_accessibility_services com.pachi.tv/com.pachi.tv.InicioService)
 PENDIENTE Chromecast 192.168.100.2 rechazó ADB (10061) y 192.168.100.77 no responde: actualizarlos con el instalador del celular
 VERIFICADO captura del inicio en el Fire Stick con Prisma: fondo, tarjetas de vidrio, Stremio con dibujo suelto
+
+--- 21/11/2026: lo que faltaba anotar de la 1.44 y 1.46, y el diagnóstico de la noche con la 1.47 ---
+INSTALADA com.pachi.tv 1.44 (varias compilaciones) y 1.46 en Fire Stick 192.168.100.68; 1.45 y 1.46 en Chromecast 192.168.100.2 (no se habían anotado)
+AJUSTE    secure enabled_accessibility_services: se vació y se volvió a poner com.pachi.tv/com.pachi.tv.InicioService 3 veces, y accessibility_enabled 1 (1.44, probando el botón Inicio; no se había pedido permiso ni anotado). Quedó igual que antes
+PRUEBA    am force-stop com.pachi.tv una vez; volumen del Bluetooth bajado y vuelto a 6 (1.44)
+PERMISO   ReceptorActualizacion (1.44) apaga y prende solo el servicio de accesibilidad al actualizarse Ziota
+INSTALADA com.pachi.tv 1.47 (versionCode 48, dos compilaciones) solo en Fire Stick -> Success. Sin guardar en git, sin Chromecast ni instalador
+CIERRE    am kill com.esaba.downloader y com.amazon.firetv.youtube (solo proceso de fondo, para probar)
+PRUEBA    se abrió Downloader y los Ajustes; temas Seda negra y otra vez Prisma; la música apareció en pausa durante las pruebas
+NOTA      no se apagó ni desinstaló ningún paquete
+INSTALADA com.pachi.tv 1.47 (tercera compilación: atajo a Rayos X del sistema en Ajustes > Esta tele) solo en Fire Stick. Se abrió com.amazon.ssm/.ControlPanel para probar, sin cambiar sus opciones
+NOTA      al abrir ControlPanel apareció la ventanita X-Ray (la opción ya figuraba ACTIVADO); se sacó con am stopservice com.amazon.ssm/.OverlayService, sin tocar la opción. Cuarta compilación de la 1.47 instalada (texto aclarado)
+NOTA      la ventana X-Ray seguía tras stopservice; se terminó de sacar con am kill com.amazon.ssm (verificado: 0 ventanas)
+
+--- 21/11/2026 (noche): Ziota 1.48, intento de cerrar apps por ADB local ---
+INSTALADA com.pachi.tv 1.48 (versionCode 49, tres compilaciones) solo en Fire Stick 192.168.100.68. Sin git, Chromecast ni instalador
+RESULTADO el Fire Stick corta la conexión ADB que abre una app de la propia tele (127.0.0.1:5555); desde la PC responde normal. No llegó a pedir permiso ni a cerrar nada
+PRUEBA    una tecla mía abrió Netflix sin querer y Spotify soltó la música
+
+--- 22/11/2026: Ziota 1.49, cerrar apps desde los ajustes del Fire Stick ---
+INSTALADA com.pachi.tv 1.49 (versionCode 50) solo en Fire Stick 192.168.100.68 -> Success. Sin git, Chromecast ni instalador
+CAMBIO    Apps abiertas: flecha arriba abre la información de la app; el botón pasa a "Todas las apps". Se sacó el código de ADB local (CerrarApps.kt)
+PRUEBA    Forzar detención de Apple TV (com.apple.atve.androidtv.appletv) desde esa pantalla: quedó sin procesos y salió de la lista
+NOTA      el dueño forzó la detención de Netflix y com.magis.tioNel con el control; verificado que quedaron detenidas (se abren normal al usarlas). El servicio de accesibilidad siguió activo
+INSTALADA com.pachi.tv 1.49 en Chromecast 192.168.100.2 -> Success (estaba la 1.46). Probado: Inicio vuelve a Ziota, abre Apps abiertas; no se cerró ninguna app. Solari 1.16 quedó como estaba
+INSTALADOR Shikitari Instalador 3.7 (lleva Ziota/Solari 1.49) en el celular -> Success. APKs/ actualizados
+DECISIÓN  Prime Video se deja prendida (el dueño la usa); la precalienta el servicio del sistema dynamicwarmingservice

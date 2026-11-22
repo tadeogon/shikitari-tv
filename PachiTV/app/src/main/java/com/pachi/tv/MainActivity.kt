@@ -301,7 +301,7 @@ class MainActivity : Activity() {
             // apretada. Doble Inicio de verdad = dos avisos separados por más de 400 ms y menos de 1,5 s.
             val pasaron = ahora - ultimoInicio
             if (pasaron < 400) return
-            if (!formal && pasaron < 1500) abrirVisorAlVolver = true
+            abrirVisorAlVolver = !formal && pasaron < 1500
             ultimoInicio = ahora
             pagina = Pagina.INICIO
             enVitrina = true
@@ -324,6 +324,10 @@ class MainActivity : Activity() {
         ultimaTecla = android.os.SystemClock.uptimeMillis()
         quieto.removeCallbacksAndMessages(null)
         quieto.postDelayed(vigilarQuieto, 2000)
+        if (reabrirTemas) {
+            reabrirTemas = false
+            contenido.postDelayed({ menuAjustes(enTemas = true) }, 250)
+        }
         if (abrirVisorAlVolver) {
             abrirVisorAlVolver = false
             contenido.postDelayed({ abrirVisor() }, 150)
@@ -358,6 +362,7 @@ class MainActivity : Activity() {
         imagenDeFondo = null
         apps = emptyList()
         recortes.clear()
+        fondo.soltar()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -558,12 +563,18 @@ class MainActivity : Activity() {
         capa.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         val pm = packageManager
         val v = AppsAbiertas(this, foto, AppsAbiertas.Datos(
-            recientes = leerLista(RECIENTES),
+            // Solo las que siguen instaladas: si no, quedaba en la lista una app ya borrada (un launcher viejo).
+            recientes = leerLista(RECIENTES).filter { pkg ->
+                pm.getLeanbackLaunchIntentForPackage(pkg) != null || pm.getLaunchIntentForPackage(pkg) != null
+            },
             nombre = { pkg -> try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (e: Exception) { pkg } },
             icono = { pkg -> try { pm.getApplicationIcon(pkg) } catch (e: Exception) { null } },
             logo = { pkg -> logoGrande(pkg) },
             abrir = { pkg -> cerrarVisor(); abrir(pkg) },
-            musica = isla.appActual,
+            informacion = { pkg -> abrirDesdeVisor(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) },
+            todas = { abrirDesdeVisor(Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)) },
+            musica = { isla.appActual },
+            ultimaMusica = { isla.ultimaApp },
         ))
         visor = v
         (capa.parent as ViewGroup).addView(v, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -571,6 +582,16 @@ class MainActivity : Activity() {
         v.alpha = 0f
         v.animate().alpha(1f).setDuration(200).start()
         v.requestFocus()
+    }
+
+    /** Abre una pantalla de los ajustes; al volver con Atrás se vuelve a Apps abiertas. */
+    private fun abrirDesdeVisor(intent: Intent) {
+        try {
+            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            abrirVisorAlVolver = true
+        } catch (e: Exception) {
+            Toast.makeText(this, "La tele no deja abrir esa pantalla", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun cerrarVisor() {
@@ -1065,6 +1086,10 @@ class MainActivity : Activity() {
     private fun bluetoothFire() = Intent("com.amazon.device.settings.action.INPUT_DEVICES")
 
     /** Abre los Ajustes generales de la TV. */
+    /** «System X-Ray» de Amazon; null si esta tele no lo tiene. */
+    private fun rayosX(): Intent? = Intent().setClassName("com.amazon.ssm", "com.amazon.ssm.ControlPanel")
+        .takeIf { packageManager.resolveActivity(it, 0)?.activityInfo?.exported == true }
+
     private fun abrirAjustesTv() {
         if (esFireTv) abrirPrimera(ajustesFire(), Intent(Settings.ACTION_SETTINGS)) else abrirIntent(Intent(Settings.ACTION_SETTINGS))
     }
@@ -2001,6 +2026,11 @@ class MainActivity : Activity() {
 
     /** Cierra lo que otras apps tienen en segundo plano; Android no deja tocar lo que está en uso. */
     private fun optimizar() {
+        // En Fire TV ese pedido se rechaza siempre: ahí se cierran desde Apps abiertas.
+        if (AppsAbiertas.SOLO_DESDE_AJUSTES) {
+            abrirVisor()
+            return
+        }
         val antes = memoriaLibreMb()
         val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
         for (ai in packageManager.getInstalledApplications(0)) {
@@ -2092,7 +2122,7 @@ class MainActivity : Activity() {
 
     private fun menuOptimizar() {
         mostrarDialogo("Optimizar", null, listOf(
-            "Optimizar ahora (${memoriaLibreMb()} MB libres)" to { optimizar() },
+            (if (AppsAbiertas.SOLO_DESDE_AJUSTES) "Ver apps abiertas (${memoriaLibreMb()} MB libres)" else "Optimizar ahora (${memoriaLibreMb()} MB libres)") to { optimizar() },
             "Animaciones del sistema: ${nombreAnimacion()}" to {
                 // Normales → Rápidas → Sin animaciones → Normales
                 val siguiente = when {
@@ -2159,7 +2189,7 @@ class MainActivity : Activity() {
 
     private var ajustes: AjustesPantalla? = null
 
-    private fun menuAjustes() {
+    private fun menuAjustes(enTemas: Boolean = false) {
         if (ajustes != null) return
         cerrarCentro()
         if (panelAbierto) cerrarPanel(enfocar = false)
@@ -2175,11 +2205,24 @@ class MainActivity : Activity() {
             { "Guardar" }, null) {
             Toast.makeText(this, if (Configuracion.guardar(this)) "Configuración guardada" else "No se pudo guardar", Toast.LENGTH_SHORT).show()
         }
+        lateinit var seccionZiota: AjustesPantalla.Seccion
+        val temas = Tema.disponibles(formal)
+        // Elegir un tema rearma la pantalla, pero vuelve a esta misma lista para poder seguir probando.
+        val seccionTemas = AjustesPantalla.Seccion(R.drawable.ic_estrella, violeta, "Tema", "", temas.map { t ->
+            AjustesPantalla.Opcion(R.drawable.ic_estrella, Tema.colorDe(t), t.nombre, Tema.descripcion(t),
+                { if (Tema.estilo == t) "Elegido" else "" }, null) {
+                if (Tema.estilo != t) {
+                    Tema.elegir(this, t)
+                    reabrirTemas = true
+                    recreate()
+                }
+            }
+        }, padre = { seccionZiota }, elegida = { temas.indexOf(Tema.estilo) })
         val secciones = listOf(
             AjustesPantalla.Seccion(R.drawable.ic_estrella, violeta, "Ziota", "El tema, las animaciones, el botón Inicio y el protector de pantalla.", listOf(
                 AjustesPantalla.Opcion(R.drawable.ic_estrella, violeta, "Tema",
-                    "Cambia el color de lo elegido y de lo prendido. Hay cuatro: Vice City, Neon Sunset, Digital Pulse y Clásico.",
-                    { Tema.estilo.nombre }, null) { Tema.siguiente(this); recreate() },
+                    "Cambia el fondo y el color de lo elegido. OK muestra la lista para elegir.",
+                    { Tema.estilo.nombre + "  ›" }, null) { ajustes?.mostrarSeccion(seccionTemas) },
                 AjustesPantalla.Opcion(R.drawable.ic_rayo, naranja, "Animaciones",
                     "Lo rápido que se mueven los menús y las apps de toda la tele. Rápida hace que todo se sienta más ágil.",
                     { if (escalaAnimacion() >= 1f) "Normal" else "Rápida" }, null) {
@@ -2248,11 +2291,17 @@ class MainActivity : Activity() {
                     Recomendacion.buscar(this) { ajustes?.refrescar(); refrescar() }
                 },
             )),
-            AjustesPantalla.Seccion(R.drawable.ic_config, celeste, "Esta tele", "Los ajustes del Fire Stick o del Google TV, pasar tu configuración a otra tele y los informes de problemas.", listOf(
+            AjustesPantalla.Seccion(R.drawable.ic_config, celeste, "Esta tele", "Los ajustes del Fire Stick o del Google TV, pasar tu configuración a otra tele y los informes de problemas.", listOfNotNull(
                 AjustesPantalla.Opcion(R.drawable.ic_config, gris, "Ajustes de la tele",
                     "Abre los ajustes del Fire Stick o del Google TV: red, pantalla, sonido y cuentas.",
                     { "" }, null) { abrirAjustesTv() },
                 pasarConfiguracion,
+                // Solo aparece donde existe (Fire TV).
+                rayosX()?.let { intent ->
+                    AjustesPantalla.Opcion(R.drawable.ic_memoria, celeste, "Rayos X del sistema",
+                        "Una ventanita de Amazon con el uso del procesador, la memoria y la red, arriba de cualquier app. Al entrar puede aparecer sola. Apagala ahí mismo, en X-Ray sistema, porque también consume.",
+                        { "Abrir" }, null) { abrirIntent(intent) }
+                },
                 AjustesPantalla.Opcion(R.drawable.ic_herramientas, rojo, "Informes de problemas",
                     "Lo que falló últimamente, guardado en esta tele. La app del celular lo puede leer para contar qué pasó. OK los borra.",
                     {
@@ -2277,8 +2326,10 @@ class MainActivity : Activity() {
         val foto = if (hayDifuminado) null else Tema.fotoBorrosa(capa)
         if (hayDifuminado) capa.setRenderEffect(RenderEffect.createBlurEffect(dp(24).toFloat(), dp(24).toFloat(), Shader.TileMode.CLAMP))
         capa.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        seccionZiota = secciones.first()
         val a = AjustesPantalla(this, foto, secciones)
         ajustes = a
+        if (enTemas) a.mostrarSeccion(seccionTemas)
         (capa.parent as ViewGroup).addView(a, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         aplicarFuente(a)
         a.alpha = 0f
@@ -2325,12 +2376,19 @@ class MainActivity : Activity() {
             opciones += "Cambiar categoría" to { elegirCategoria(app) }
             opciones += "Ocultar" to { ocultar(app, true) }
         }
-        opciones += "Cerrar en segundo plano" to {
-            (getSystemService(ACTIVITY_SERVICE) as ActivityManager).killBackgroundProcesses(app.pkg)
-            Toast.makeText(this, "${app.label} cerrada", Toast.LENGTH_SHORT).show()
+        // En Fire TV se cierra desde "Información de la app" (Forzar detención).
+        if (!AppsAbiertas.SOLO_DESDE_AJUSTES) opciones += "Cerrar en segundo plano" to {
+            when {
+                app.pkg == isla.appActual -> Toast.makeText(this, "${app.label} está con música: no se cierra", Toast.LENGTH_SHORT).show()
+                !AppsAbiertas.sePuedeCerrar(this, app.pkg) -> Toast.makeText(this, "${app.label} no se puede cerrar", Toast.LENGTH_SHORT).show()
+                else -> {
+                    (getSystemService(ACTIVITY_SERVICE) as ActivityManager).killBackgroundProcesses(app.pkg)
+                    Toast.makeText(this, "Se pidió cerrar ${app.label}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
         opciones += "Optimizar" to { menuOptimizar() }
-        opciones += "Información de la app" to {
+        opciones += (if (AppsAbiertas.SOLO_DESDE_AJUSTES) "Cerrar o ver información" else "Información de la app") to {
             abrirIntent(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")))
         }
         if (!app.sistema) {
@@ -2477,6 +2535,7 @@ class MainActivity : Activity() {
             Toast.makeText(this, "No se puede abrir esta app", Toast.LENGTH_SHORT).show()
             return
         }
+        AppsAbiertas.seAbrio(this, pkg)
         guardarLista(RECIENTES, (listOf(pkg) + leerLista(RECIENTES).filter { it != pkg }).take(12))
         abrirIntent(intent)
     }
@@ -2537,6 +2596,8 @@ class MainActivity : Activity() {
         const val EXTRA_DESDE_HOME = "desde_home"
         /** Si Ziota está en pantalla ahora (lo mira el servicio de Inicio). */
         @Volatile var adelante = false
+        /** Se acaba de cambiar el tema desde Ajustes: al rearmar la pantalla se vuelve a esa lista. */
+        private var reabrirTemas = false
         private const val COLOR_NEUTRO = 0xFF26262C.toInt()
         /** Color de selección: cian con el tema Vice, crema con el clásico. */
         val CREMA: Int get() = Tema.acento
