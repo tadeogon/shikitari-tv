@@ -6,6 +6,13 @@ y la **app del celular** (`ShikitariInstalador/`). Repositorio privado en GitHub
 Equipos, direcciones adb, versiones y lo aprendido: `Notas/contexto.md` (leerlo solo si hace falta).
 Cómo compilar: `COMPILAR.md`. Cambios hechos en cada tele: `Registros/firestick-cambios.txt`.
 
+## Cómo buscar (ahorrar tokens)
+- **Mapa de qué archivo hace cada cosa: `docs/INDEX.md`.** Mirarlo primero e ir directo al archivo.
+- No recorrer todo el repo ni leer archivos enteros: buscar con Grep (`fun nombre`, un texto de la pantalla)
+  y leer solo esas líneas. `PachiTV/.../MainActivity.kt` es enorme: ubicar la sección con `grep -n "// ----------"`.
+- No abrir imágenes, fuentes, `build/` ni `Notas/*.html` salvo que el usuario lo pida.
+- Si se agrega, borra o mueve un archivo, actualizar su línea en `docs/INDEX.md` en el mismo cambio.
+
 ## Cómo hablarle al usuario
 - Es principiante: español rioplatense, simple, sin palabras técnicas. Respuestas cortas.
 - Cuida los tokens: pocas capturas de pantalla (solo si hace falta ver algo), no leer archivos enteros sin necesidad,
