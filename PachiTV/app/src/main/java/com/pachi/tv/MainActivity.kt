@@ -587,7 +587,8 @@ class MainActivity : Activity() {
     /** Abre una pantalla de los ajustes; al volver con Atrás se vuelve a Apps abiertas. */
     private fun abrirDesdeVisor(intent: Intent) {
         try {
-            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // CLEAR_TASK: si Ajustes ya estaba abierto de antes, Atrás volvía a esa pantalla vieja y no a Ziota.
+            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
             abrirVisorAlVolver = true
         } catch (e: Exception) {
             Toast.makeText(this, "La tele no deja abrir esa pantalla", Toast.LENGTH_SHORT).show()

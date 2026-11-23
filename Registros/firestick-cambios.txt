@@ -289,3 +289,6 @@ INSTALADA com.pachi.tv 1.50 (versionCode 51) en Chromecast 192.168.100.2 -> Succ
 PRUEBA    doble Inicio abre Apps abiertas; arriba en Netflix abre su información con "Forzar detención". No se cerró ninguna app
 INSTALADOR 4.2 (lleva Ziota/Solari 1.50) compilado y en APKs/; el celular no estaba en la red, sigue con 4.1
 NOTA      Fire Stick dormido: queda en 1.49 (ahí la 1.50 se comporta igual)
+INSTALADA com.pachi.tv 1.51 (versionCode 52, dos compilaciones) en Chromecast -> Success. Atrás desde la información vuelve a Ziota aunque Ajustes estuviera abierto (probado). Inicio vuelve a Ziota
+NOTA      la primera compilación de la 1.51 tenía el cambio en tres lugares por error; se reemplazó enseguida
+INSTALADOR 4.2 recompilado con Ziota/Solari 1.51 en APKs/
