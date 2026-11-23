@@ -282,3 +282,10 @@ PRUEBA    Fire Stick 192.168.100.68: volumen abajo y arriba por ADB; lo ignora p
 LECTURA   copias de ClipBox, Tio Nel y Modocine guardadas en el celular (solo lectura de la tele)
 REVISADO  Chromecast 192.168.100.2 ya tiene com.pachi.tv 1.49, igual que el Fire Stick: no se instaló nada
 PENDIENTE probar el volumen de la Samsung por Wi-Fi (hay que aceptar "Shikitari Control" en la tele) y reinstalar una copia .apks
+
+--- 22/11/2026 (noche): Ziota 1.50, cerrar apps también en el Chromecast ---
+CAUSA     Android 14 (Chromecast) rechaza killBackgroundProcesses ("Invalid packageName"): la app salía de la lista pero no se cerraba
+INSTALADA com.pachi.tv 1.50 (versionCode 51) en Chromecast 192.168.100.2 -> Success (estaba la 1.49). Servicio del botón Inicio activo
+PRUEBA    doble Inicio abre Apps abiertas; arriba en Netflix abre su información con "Forzar detención". No se cerró ninguna app
+INSTALADOR 4.2 (lleva Ziota/Solari 1.50) compilado y en APKs/; el celular no estaba en la red, sigue con 4.1
+NOTA      Fire Stick dormido: queda en 1.49 (ahí la 1.50 se comporta igual)

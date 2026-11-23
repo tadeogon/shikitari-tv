@@ -24,8 +24,8 @@ import java.util.Locale
  * ← → se mueve, OK la abre, ↑ la cierra, ↓ la protege; a la derecha, "Cerrar todo" con la memoria.
  * Se abre con Inicio dos veces.
  *
- * En Fire TV ninguna app puede cerrar a otra (ver [SOLO_DESDE_AJUSTES]): ahí ↑ abre la información de esa app en los
- * ajustes del Fire Stick (para tocar "Forzar detención") y el botón de la derecha, la lista de todas las apps.
+ * En Fire TV y en Android 14 o más ninguna app puede cerrar a otra (ver [SOLO_DESDE_AJUSTES]): ahí ↑ abre la información de esa app en los
+ * ajustes de la tele (para tocar "Forzar detención") y el botón de la derecha, la lista de todas las apps.
  *
  * Protegidas: las que elegiste con ↓ y la que está sonando música nunca se cierran (ni con "Cerrar todo").
  * Las de [NUNCA_MOSTRAR] (como WOL Puente, que prende la PC) ni aparecen, para no cerrarlas sin querer.
@@ -46,7 +46,7 @@ class AppsAbiertas(
         val icono: (String) -> Drawable?,
         val logo: (String) -> Drawable?,
         val abrir: (String) -> Unit,
-        /** Solo Fire TV: la información de una app y la lista de todas, en los ajustes de la tele. */
+        /** Donde no se puede cerrar directo: la información de una app y la lista de todas, en los ajustes de la tele. */
         val informacion: (String) -> Unit,
         val todas: () -> Unit,
         /** La app que está pasando música ahora (se protege sola). */
@@ -289,9 +289,11 @@ class AppsAbiertas(
 
         /**
          * Fire TV: el pedido común de Android (killBackgroundProcesses) se rechaza siempre, y Amazon no deja que una
-         * app use el ADB de la propia tele. Solo se puede cerrar desde los ajustes del Fire Stick (o desde el celular).
+         * app use el ADB de la propia tele. Android 14 o más (Chromecast) tampoco deja: contesta "Invalid packageName"
+         * y no cierra nada. Solo se puede cerrar desde los ajustes de la tele (o desde el celular).
          */
-        val SOLO_DESDE_AJUSTES = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
+        val SOLO_DESDE_AJUSTES = android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true) ||
+            android.os.Build.VERSION.SDK_INT >= 34
 
         /** "Forzar detención" deja esta marca en la app hasta que se la vuelve a abrir. */
         private fun detenida(c: Context, pkg: String) = try {
