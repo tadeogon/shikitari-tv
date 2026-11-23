@@ -100,6 +100,19 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         correr(comando, segundos)
     }
 
+    /**
+     * Para datos de adorno (por ejemplo, la memoria libre): si la TV no está conectada o tarda,
+     * devuelve null y listo. No reconecta ni hace revisar la conexión.
+     */
+    fun leerSuave(comando: String, segundos: Long = 6): String? {
+        if (!isConnected) return null
+        return try {
+            correr(comando, segundos)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun correr(comando: String, segundos: Long): String {
         val tarea = Executors.newSingleThreadExecutor()
         try {
@@ -166,10 +179,28 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         }
     }
 
+    /**
+     * Abre un canal con tope. La librería espera sin límite y, mientras espera, traba a todos los demás
+     * (hasta el «¿sigue conectada?»), así que un solo canal colgado dejaba la app en «Reconectando».
+     */
+    private fun abrir(servicio: String): io.github.muntashirakon.adb.AdbStream {
+        val tarea = Executors.newSingleThreadExecutor()
+        try {
+            return tarea.submit<io.github.muntashirakon.adb.AdbStream> { openStream(servicio) }.get(15, TimeUnit.SECONDS)
+        } catch (e: java.util.concurrent.ExecutionException) {
+            throw (e.cause as? Exception) ?: e
+        } catch (e: java.util.concurrent.TimeoutException) {
+            alFallar?.invoke()
+            throw IOException("La TV no contestó.")
+        } finally {
+            tarea.shutdownNow()
+        }
+    }
+
     /** Instala un APK enviándolo por la conexión (igual que "adb install"). */
     fun instalarApk(apk: ByteArray): String {
         asegurarConexion()
-        val stream = openStream("exec:cmd package install -r -S ${apk.size}")
+        val stream = abrir("exec:cmd package install -r -S ${apk.size}")
         try {
             val salida = stream.openOutputStream()
             var i = 0
@@ -233,8 +264,8 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         } catch (e: java.util.concurrent.ExecutionException) {
             throw (e.cause as? Exception) ?: e // por ejemplo «pairing is required»: se explica arriba
         } catch (e: Exception) {
+            futuro.cancel(true) // primero se corta la espera: si no, soltar() queda trabado detrás de ella
             soltar()
-            futuro.cancel(true)
             false
         } finally {
             tarea.shutdownNow()
@@ -245,6 +276,11 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
         }
         return ok
     }
+
+    /** Conecta solo si hace falta: si otro pedido ya reconectó, usa esa conexión en vez de tirarla abajo. */
+    @Synchronized
+    fun conectarSiHaceFalta(host: String, puerto: Int): Boolean =
+        if (isConnected && ultimoHost == host) true else reconectar(host, puerto)
 
     /** Si la conexión se cortó (la TV entró en reposo, se cambió de app, etc.), vuelve a conectar sola. */
     @Synchronized
@@ -259,7 +295,7 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     /** Escribe un archivo en la TV (por ejemplo, la foto de portada), enviándolo por la conexión. */
     fun escribirArchivo(ruta: String, datos: ByteArray) {
         asegurarConexion()
-        val stream = openStream("exec:sh -c 'cat > $ruta'")
+        val stream = abrir("exec:sh -c 'cat > $ruta'")
         val salida = stream.openOutputStream()
         var i = 0
         while (i < datos.size) {
@@ -274,7 +310,7 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     /** Pasa un archivo del celular a la TV de a pedazos (sirve para videos grandes sin llenar la memoria). */
     fun enviarArchivo(ruta: String, entrada: InputStream, progreso: (Long) -> Unit) {
         asegurarConexion()
-        val stream = openStream("exec:cat > ${comillas(ruta)}")
+        val stream = abrir("exec:cat > ${comillas(ruta)}")
         try {
             val salida = stream.openOutputStream()
             val buffer = ByteArray(64 * 1024)
@@ -293,9 +329,16 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     }
 
     /** Instala un APK que está en el celular, mandándolo de a pedazos (sirve aunque pese cientos de MB). */
-    fun instalarApk(entrada: InputStream, tamano: Long, progreso: (Long) -> Unit): String {
+    fun instalarApk(entrada: InputStream, tamano: Long, progreso: (Long) -> Unit): String =
+        mandarA("cmd package install -r -S $tamano", entrada, progreso)
+
+    /** Manda un pedazo de una app que viene en varios (instalación por sesión). */
+    fun mandarPedazo(sesion: String, nombre: String, entrada: InputStream, tamano: Long, progreso: (Long) -> Unit): String =
+        mandarA("cmd package install-write -S $tamano $sesion $nombre -", entrada, progreso)
+
+    private fun mandarA(comando: String, entrada: InputStream, progreso: (Long) -> Unit): String {
         asegurarConexion()
-        val stream = openStream("exec:cmd package install -r -S $tamano")
+        val stream = abrir("exec:$comando")
         try {
             val salida = stream.openOutputStream()
             val buffer = ByteArray(64 * 1024)
@@ -317,7 +360,7 @@ class ConexionTv private constructor(contexto: Context) : AbsAdbConnectionManage
     /** Trae un archivo de la TV al celular, escribiéndolo en [salida] a medida que llega. */
     fun recibirArchivo(ruta: String, salida: OutputStream, progreso: (Long) -> Unit) {
         asegurarConexion()
-        val stream = openStream("exec:cat ${comillas(ruta)}")
+        val stream = abrir("exec:cat ${comillas(ruta)}")
         try {
             val entrada = stream.openInputStream()
             val buffer = ByteArray(64 * 1024)

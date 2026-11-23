@@ -366,7 +366,7 @@ private fun Pie(content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))))
+            .background(Colores.fondo)
             .navigationBarsPadding()
             .padding(start = Espacio.borde, end = Espacio.borde, top = 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -447,7 +447,7 @@ private fun VistaPlan(
             ) {
                 item(key = "cabecera") {
                     Column {
-                        Text(plan.modelo.uppercase(), style = Letras.seccion, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+                        Text(plan.modelo.uppercase(), style = Letras.seccion, modifier = Modifier.padding(bottom = 2.dp))
                         NumeroQueCuenta(cuenta)
                         Text("cosas para apagar", style = Letras.frase)
                         Text(
@@ -553,9 +553,31 @@ private fun VistaPlan(
                 )
             }
         }
-        Pie {
-            BotonPrincipal("Dejarla limpia", onLimpiar)
-            BotonSecundario("Personalizar", onPersonalizar)
+        // Barra de acción: cuántas se apagan y el botón, como en el diseño.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
+        ) {
+            BotonTexto("Personalizar", onPersonalizar)
+            Row(
+                Modifier.fillMaxWidth().vidrio(Formas.barra, alto = true).padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        when (cuenta) {
+                            0 -> "Nada elegido"
+                            1 -> "Apagar 1 app"
+                            else -> "Apagar $cuenta apps"
+                        },
+                        style = Letras.cuerpo.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+                    )
+                    Text(if (cuenta == 0) "tocá una fila para elegirla" else "se puede deshacer", style = Letras.detalle)
+                }
+                BotonPrincipal("Apagar", onLimpiar, Modifier.width(132.dp))
+            }
         }
     }
 }
@@ -641,7 +663,7 @@ private fun HojaPersonalizar(
         ) {
             Text("Personalizar", style = Letras.titulo.copy(fontSize = 26.sp, lineHeight = 30.sp))
             Text(
-                "Nada se aplica hasta que toques Dejarla limpia.",
+                "Nada se aplica hasta que toques Apagar.",
                 style = Letras.nota,
                 modifier = Modifier.padding(top = 4.dp, bottom = Espacio.hueco),
             )

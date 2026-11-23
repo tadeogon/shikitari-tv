@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -32,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -51,6 +53,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shikitari.instalador.Bitacora
 import com.shikitari.instalador.ControlActivity
+import com.shikitari.instalador.SamsungTv
 import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -106,6 +109,7 @@ class EstadoControl(private val app: EstadoApp) {
     fun cerrar() {
         hiloCaptura.shutdownNow()
         hiloTeclas.shutdownNow()
+        hiloVolumen.shutdownNow()
         hiloApps.shutdownNow()
     }
 
@@ -171,6 +175,69 @@ class EstadoControl(private val app: EstadoApp) {
         }
     }
 
+    // ---------- Volumen ----------
+    // Por HDMI, el Fire Stick ignora el volumen («fixed volume device»): hay que pedírselo a la tele.
+    // Con parlante o auriculares Bluetooth sí lo maneja él.
+
+    private val samsung = SamsungTv(contexto)
+    private val hiloVolumen = Executors.newSingleThreadExecutor()
+    private var volumenFijo = false
+    private var volumenMirado = 0L
+    private var volumenDe = ""
+    private var teleSamsung: String? = null
+
+    fun volumen(codigo: String, teclaSamsung: String) {
+        val ip = app.conectada?.ip ?: return
+        hiloVolumen.execute {
+            val ahora = System.currentTimeMillis()
+            if (volumenDe != ip || ahora - volumenMirado > 20_000) {
+                if (volumenDe != ip) {
+                    volumenDe = ip
+                    volumenFijo = false
+                    teleSamsung = null
+                }
+                val audio = app.tv.leerSuave("dumpsys audio | grep -E 'mFixedVolumeDevices|STREAM_MUSIC:|Devices:'")
+                if (audio != null) {
+                    volumenMirado = ahora
+                    volumenFijo = sinVolumenPropio(audio)
+                }
+            }
+            if (!volumenFijo) {
+                mandarTecla(codigo)
+                return@execute
+            }
+            try {
+                val tele = teleSamsung ?: run {
+                    app.enUi { app.cartel.trabajando("Buscando la tele") }
+                    samsung.buscar(ip).also { teleSamsung = it }
+                }
+                if (tele == null) {
+                    app.enUi { app.cartel.avisar(false, "Por HDMI el volumen lo maneja la tele, y no encontré una Samsung en el Wi-Fi.") }
+                    return@execute
+                }
+                val primera = !samsung.conPermiso(tele)
+                if (primera) app.enUi { app.cartel.trabajando("Mirá la tele: aceptá «Shikitari Control» (elegí Permitir)") }
+                samsung.tecla(tele, teclaSamsung)
+                app.enUi { if (primera) app.cartel.avisar(true, "Listo: el volumen ahora va directo a la tele") else app.cartel.cerrar() }
+            } catch (e: SamsungTv.SinPermiso) {
+                app.enUi { app.cartel.avisar(false, "La tele no dio permiso. Tocá de nuevo y elegí Permitir en la pantalla.") }
+            } catch (e: Exception) {
+                teleSamsung = null
+                Bitacora.anotar(contexto, "▸ Volumen de la tele — falló\n${e.message}")
+                app.enUi { app.cartel.avisar(false, "La tele no contestó al volumen: ${e.message}") }
+            }
+        }
+    }
+
+    /** ¿La música sale por HDMI y la TV marca ese camino como de volumen fijo? */
+    private fun sinVolumenPropio(audio: String): Boolean {
+        val lineas = audio.lines().map { it.trim() }
+        val fijos = lineas.firstOrNull { it.startsWith("mFixedVolumeDevices") }?.substringAfter('=')?.split(',')?.map { it.trim() }.orEmpty()
+        val i = lineas.indexOfFirst { it.contains("STREAM_MUSIC:") }
+        val sale = if (i < 0) "" else lineas.drop(i).firstOrNull { it.startsWith("Devices:") }.orEmpty()
+        return "0x400" in fijos && sale.substringAfter(':').trim() == "hdmi"
+    }
+
     // ---------- Apps ----------
 
     /** Lee las apps de la TV conectada (una vez por TV; [forzar] para releer). */
@@ -196,7 +263,7 @@ class EstadoControl(private val app: EstadoApp) {
                         guardarFavoritas(ControlActivity.FAVORITAS_INICIALES.filter { p -> lista.any { it.first == p } })
                     }
                     apps = lista
-                    estadoApps = if (lista.isEmpty()) "No se encontraron apps en la TV." else "${lista.size} apps · dejá apretada una para fijarla o desinstalarla"
+                    estadoApps = if (lista.isEmpty()) "No se encontraron apps en la TV." else "${lista.size} apps · dejá apretada una para guardarla en el celular, fijarla o desinstalarla"
                 }
             } catch (e: Exception) {
                 app.enUi { estadoApps = "No se pudieron leer las apps: ${e.message}" }
@@ -243,9 +310,39 @@ class EstadoControl(private val app: EstadoApp) {
             listOf(
                 Opcion("Abrir en la TV", Iconos.play) { abrirApp(paquete, nombre) },
                 Opcion(if (esFavorita) "Quitar de favoritas" else "Fijar arriba", Iconos.estrella) { alternarFavorita(paquete, nombre) },
+                Opcion("Guardar APK en el celular", Iconos.bajar) { guardarEnCelular(paquete, nombre) },
                 Opcion("Desinstalar de la TV", Iconos.basura, peligro = true) { confirmarDesinstalar(paquete, nombre) },
             ),
         )
+    }
+
+    /** Cuántas copias se están guardando (mientras tanto, la pantalla del celular no se apaga). */
+    var guardando by mutableStateOf(0)
+        private set
+
+    private fun guardarEnCelular(paquete: String, nombre: String) {
+        app.cartel.trabajando("Guardando $nombre")
+        guardando++
+        hiloApps.execute {
+            var ultimo = 0L
+            try {
+                val g = Respaldo.guardar(contexto, app.tv, paquete, nombre) { hecho, total ->
+                    val ahora = System.currentTimeMillis()
+                    if (ahora - ultimo > 500 && total > 0) {
+                        ultimo = ahora
+                        val parte = (hecho * 100 / total).toInt()
+                        app.enUi { app.cartel.trabajando("Guardando $nombre: $parte % de ${EstadoArchivos.tamano(total)}") }
+                    }
+                }
+                Bitacora.anotar(contexto, "▸ Guardar APK en el celular\n$nombre ($paquete) → ${g.archivo} (${EstadoArchivos.tamano(g.bytes)})")
+                app.enUi { app.cartel.avisar(true, "Guardada en Descargas › ${Respaldo.CARPETA}: ${g.archivo}") }
+            } catch (e: Exception) {
+                Bitacora.anotar(contexto, "▸ Guardar APK en el celular — falló\n$nombre ($paquete): ${e.message}")
+                app.enUi { app.cartel.avisar(false, "No se pudo guardar $nombre: ${e.message}. No salgas de la app mientras se guarda.") }
+            } finally {
+                app.enUi { guardando-- }
+            }
+        }
     }
 
     private fun confirmarDesinstalar(paquete: String, nombre: String) {
@@ -368,26 +465,43 @@ fun PestanaControl(app: EstadoApp, control: EstadoControl, irA: (Ruta) -> Unit, 
         control.cargarApps()
     }
 
-    Pagina(
-        titulo = "Control",
-        subtitulo = conectada?.nombre,
-        accion = if (conectada != null) {
-            { BotonBarra(if (control.pausa) Iconos.play else Iconos.pausa, if (control.pausa) "Reanudar la vista" else "Pausar la vista") { control.alternarPausa() } }
-        } else null,
-    ) {
-        if (conectada == null) {
-            SinTv(irAPestana)
-            return@Pagina
+    if (conectada == null) {
+        Pagina(titulo = "Control", antetitulo = "Sin conexión") { SinTv(irAPestana) }
+        return
+    }
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        // Arriba: en qué está la vista y el botón de pausa
+        Row(
+            Modifier.fillMaxWidth().padding(start = Espacio.borde, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val vivo = !control.pausa && (if (conVideo) control.enVivo else control.imagen != null)
+            Box(Modifier.size(8.dp).background(if (vivo) Colores.acento else Colores.textoDim2, CircleShape))
+            Text(
+                when {
+                    control.pausa -> "EN PAUSA"
+                    vivo -> "EN VIVO"
+                    else -> "CONECTANDO"
+                },
+                style = Letras.seccion.copy(color = Colores.texto),
+                modifier = Modifier.padding(start = 8.dp),
+            )
+            Text(
+                conectada.nombre.uppercase(),
+                style = Letras.seccion,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+            )
+            BotonBarra(if (control.pausa) Iconos.play else Iconos.pausa, if (control.pausa) "Reanudar la vista" else "Pausar la vista") { control.alternarPausa() }
         }
-        // 1. Pantalla de la TV (16:9)
+        // Pantalla de la TV, de borde a borde (16:9)
         Box(
             Modifier
-                .padding(top = Espacio.hueco)
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-                .clip(Formas.tarjeta)
-                .background(Color.Black)
-                .border(1.dp, Colores.linea, Formas.tarjeta),
+                .background(Colores.superficie1),
             contentAlignment = Alignment.Center,
         ) {
             if (conVideo) {
@@ -408,21 +522,34 @@ fun PestanaControl(app: EstadoApp, control: EstadoControl, irA: (Ruta) -> Unit, 
                 }
             }
         }
-
-        // 2. Control remoto
-        Hueco(22)
-        Cruceta(control)
-        Hueco(22)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            TeclaRedonda(Iconos.volver, "Atrás") { control.mandarTecla("KEYCODE_BACK") }
-            TeclaRedonda(Iconos.casa, "Inicio") { control.mandarTecla("KEYCODE_HOME") }
-            TeclaRedonda(Iconos.volumenMenos, "Volumen −") { control.mandarTecla("KEYCODE_VOLUME_DOWN") }
-            TeclaRedonda(Iconos.volumenMas, "Volumen +") { control.mandarTecla("KEYCODE_VOLUME_UP") }
-        }
-
-        // 3. Apps (en su propia pantalla, para que esta no quede cargada)
-        Hueco(22)
-        Tarjeta {
+        // Control remoto: centrado en lo que queda; si no entra, se desliza.
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Espacio.borde, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+        ) {
+            Cruceta(control)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TeclaTexto("Atrás", Modifier.weight(1f)) { control.mandarTecla("KEYCODE_BACK") }
+                TeclaTexto("Inicio", Modifier.weight(1f)) { control.mandarTecla("KEYCODE_HOME") }
+                TeclaTexto("Menú", Modifier.weight(1f)) { control.mandarTecla("KEYCODE_MENU") }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TeclaRedonda(Iconos.silencio, "Silenciar", color = Colores.textoDim, borde = false) { control.volumen("KEYCODE_VOLUME_MUTE", "KEY_MUTE") }
+                TeclaRedonda(Iconos.menos, "Bajar el volumen") { control.volumen("KEYCODE_VOLUME_DOWN", "KEY_VOLDOWN") }
+                Text("Volumen", style = Letras.detalle.copy(fontSize = 15.sp), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                TeclaRedonda(Iconos.agregar, "Subir el volumen") { control.volumen("KEYCODE_VOLUME_UP", "KEY_VOLUP") }
+                TeclaRedonda(Iconos.encendido, "Prender o apagar la TV", color = Colores.acento) { control.mandarTecla("KEYCODE_POWER") }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TeclaIcono(Iconos.retroceder, "Retroceder", Modifier.weight(1f)) { control.mandarTecla("KEYCODE_MEDIA_REWIND") }
+                TeclaRedonda(Iconos.pausa, "Pausar o seguir", tamano = 56, color = Colores.sobreAcento, relleno = Colores.texto) { control.mandarTecla("KEYCODE_MEDIA_PLAY_PAUSE") }
+                TeclaIcono(Iconos.adelantar, "Adelantar", Modifier.weight(1f)) { control.mandarTecla("KEYCODE_MEDIA_FAST_FORWARD") }
+            }
+            // Las apps tienen su propia pantalla, para que esta no quede cargada.
             FilaIr("Apps de la TV", if (control.apps.isEmpty()) control.estadoApps else "${control.apps.size} apps · favoritas arriba", Iconos.grilla, primera = true) {
                 irA(Ruta.Apps)
             }
@@ -439,18 +566,11 @@ fun SinTv(irAPestana: (Pestana) -> Unit) {
     BotonPrincipal("Ir a Mis TVs", onClick = { irAPestana(Pestana.TV) })
 }
 
-/** Las cuatro flechas y el OK, en un círculo de vidrio. */
+/** Las cuatro flechas y el OK, en un círculo de línea fina. */
 @Composable
 private fun Cruceta(control: EstadoControl) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(232.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.32f))
-                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.085f), Color.White.copy(alpha = 0.045f))))
-                .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
-        ) {
+        Box(Modifier.size(212.dp).vidrio(CircleShape, alto = true)) {
             Flecha(Iconos.chevronArriba, "Arriba", Modifier.align(Alignment.TopCenter)) { control.mandarTecla("KEYCODE_DPAD_UP") }
             Flecha(Iconos.chevronAbajo, "Abajo", Modifier.align(Alignment.BottomCenter)) { control.mandarTecla("KEYCODE_DPAD_DOWN") }
             Flecha(Iconos.chevronIzquierda, "Izquierda", Modifier.align(Alignment.CenterStart)) { control.mandarTecla("KEYCODE_DPAD_LEFT") }
@@ -459,16 +579,16 @@ private fun Cruceta(control: EstadoControl) {
             Box(
                 Modifier
                     .align(Alignment.Center)
-                    .size(92.dp)
+                    .size(84.dp)
                     .clip(CircleShape)
-                    .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.97f), Color.White.copy(alpha = 0.84f))))
+                    .border(1.dp, Colores.linea, CircleShape)
                     .clickable(role = Role.Button) {
                         vibrar.performHapticFeedback(HapticFeedbackType.LongPress)
                         control.mandarTecla("KEYCODE_DPAD_CENTER")
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("OK", color = Colores.sobreAcento, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                Text("OK", color = Colores.texto, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -479,7 +599,7 @@ private fun Flecha(icono: ImageVector, nombre: String, modifier: Modifier, onCli
     val vibrar = LocalHapticFeedback.current
     Box(
         modifier
-            .size(70.dp)
+            .size(64.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button) {
                 vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -487,30 +607,71 @@ private fun Flecha(icono: ImageVector, nombre: String, modifier: Modifier, onCli
             },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icono, contentDescription = nombre, tint = Colores.texto, modifier = Modifier.size(30.dp))
+        Icon(icono, contentDescription = nombre, tint = Colores.texto, modifier = Modifier.size(24.dp))
+    }
+}
+
+/** Tecla redonda con ícono; por defecto, solo el borde. */
+@Composable
+private fun TeclaRedonda(
+    icono: ImageVector,
+    nombre: String,
+    tamano: Int = 48,
+    color: Color = Colores.texto,
+    relleno: Color = Color.Transparent,
+    borde: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val vibrar = LocalHapticFeedback.current
+    Box(
+        Modifier
+            .size(tamano.dp)
+            .clip(CircleShape)
+            .background(relleno)
+            .border(1.dp, if (borde) Colores.linea else Color.Transparent, CircleShape)
+            .clickable(role = Role.Button) {
+                vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icono, contentDescription = nombre, tint = color, modifier = Modifier.size(22.dp))
     }
 }
 
 @Composable
-private fun TeclaRedonda(icono: ImageVector, nombre: String, onClick: () -> Unit) {
+private fun TeclaTexto(texto: String, modifier: Modifier, onClick: () -> Unit) {
     val vibrar = LocalHapticFeedback.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier
-                .size(58.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.32f))
-                .background(Color.White.copy(alpha = 0.10f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
-                .clickable(role = Role.Button) {
-                    vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onClick()
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icono, contentDescription = nombre, tint = Colores.texto, modifier = Modifier.size(24.dp))
-        }
-        Text(nombre, style = Letras.detalle.copy(fontSize = 12.sp), modifier = Modifier.padding(top = 6.dp))
+    Box(
+        modifier
+            .heightIn(min = 48.dp)
+            .clip(Formas.pastilla)
+            .border(1.dp, Colores.linea, Formas.pastilla)
+            .clickable(role = Role.Button) {
+                vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(texto, style = Letras.cuerpo.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium))
+    }
+}
+
+@Composable
+private fun TeclaIcono(icono: ImageVector, nombre: String, modifier: Modifier, onClick: () -> Unit) {
+    val vibrar = LocalHapticFeedback.current
+    Box(
+        modifier
+            .heightIn(min = 56.dp)
+            .clip(Formas.tarjeta)
+            .border(1.dp, Colores.linea, Formas.tarjeta)
+            .clickable(role = Role.Button) {
+                vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icono, contentDescription = nombre, tint = Colores.texto, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -519,6 +680,11 @@ private fun TeclaRedonda(icono: ImageVector, nombre: String, onClick: () -> Unit
 @Composable
 fun PantallaApps(app: EstadoApp, control: EstadoControl, onAtras: () -> Unit) {
     LaunchedEffect(app.conectada?.ip) { control.cargarApps() }
+    val vista = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(control.guardando > 0) {
+        vista.keepScreenOn = control.guardando > 0
+        onDispose { vista.keepScreenOn = false }
+    }
     val favs = control.favoritas
     val fijadas = favs.mapNotNull { p -> control.apps.find { it.first == p } }
     val resto = control.apps.filter { it.first !in favs }

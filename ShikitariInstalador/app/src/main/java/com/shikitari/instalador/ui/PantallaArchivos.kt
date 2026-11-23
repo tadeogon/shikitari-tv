@@ -243,20 +243,23 @@ class EstadoArchivos(private val app: EstadoApp) {
                 val (nombre, tam) = datosDe(uri)
                 val cual = if (elegidos.size > 1) " (${i + 1} de ${elegidos.size})" else ""
                 try {
-                    if (!nombre.endsWith(".apk", ignoreCase = true)) {
+                    val partida = nombre.endsWith(".apks", ignoreCase = true) // copia de una app que viene en pedazos
+                    if (!partida && !nombre.endsWith(".apk", ignoreCase = true)) {
                         throw Exception(
-                            if (nombre.endsWith(".apks", true) || nombre.endsWith(".xapk", true) || nombre.endsWith(".apkm", true))
-                                "es un paquete dividido (.apks/.xapk); hace falta el .apk común"
+                            if (nombre.endsWith(".xapk", true) || nombre.endsWith(".apkm", true))
+                                "es un paquete dividido (.xapk/.apkm); hace falta el .apk común"
                             else "no es un APK",
                         )
                     }
                     if (tam <= 0) throw Exception("no se pudo saber cuánto pesa")
                     app.enUi { textoProgreso = "Instalando $nombre$cual" }
                     val salida = contexto.contentResolver.openInputStream(uri)?.use { e ->
-                        app.tv.instalarApk(e, tam) { hecho ->
-                            progreso(hecho, tam)
-                            if (hecho >= tam) app.enUi { textoProgreso = "La TV está instalando $nombre" }
+                        val avance = { hecho: Long, total: Long ->
+                            progreso(hecho, total)
+                            if (hecho >= total) app.enUi { textoProgreso = "La TV está instalando $nombre" }
                         }
+                        if (partida) Respaldo.instalarPartida(contexto, app.tv, e, avance)
+                        else app.tv.instalarApk(e, tam) { hecho -> avance(hecho, tam) }
                     } ?: throw Exception("no se pudo abrir")
                     Bitacora.anotar(contexto, "▸ Instalar APK del celular en la TV\n$nombre (${tamano(tam)})\n$salida")
                     if (!salida.contains("Success")) throw Exception(motivoError(salida))

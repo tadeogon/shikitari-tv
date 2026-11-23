@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -122,10 +123,10 @@ fun BotonPrincipal(
 ) = BotonBase(
     texto = texto,
     onClick = onClick,
-    relleno = Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.97f), Color.White.copy(alpha = 0.84f))),
+    relleno = SolidColor(Colores.acento),
     colorTexto = Colores.sobreAcento,
-    borde = Color.White.copy(alpha = 0.5f),
-    sombra = true,
+    borde = Color.Transparent,
+    sombra = false,
     modifier = modifier,
     cargando = cargando,
     habilitado = habilitado,
@@ -140,9 +141,9 @@ fun BotonSecundario(
 ) = BotonBase(
     texto = texto,
     onClick = onClick,
-    relleno = Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.08f))),
+    relleno = SolidColor(Color.Transparent),
     colorTexto = Colores.texto,
-    borde = Color.White.copy(alpha = 0.12f),
+    borde = Colores.linea,
     sombra = false,
     modifier = modifier,
     cargando = cargando,
@@ -164,16 +165,16 @@ fun BotonTexto(texto: String, onClick: () -> Unit, modifier: Modifier = Modifier
 
 // ---------- Tarjetas y filas ----------
 
+/** Grupo de filas: suelto sobre el negro, o con caja si [alto]. */
 @Composable
 fun Tarjeta(modifier: Modifier = Modifier, alto: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier.fillMaxWidth().vidrio(alto = alto), content = content)
+    Column(modifier.fillMaxWidth().then(if (alto) Modifier.vidrio(alto = true) else Modifier), content = content)
 }
 
 @Composable
 fun Separador(modifier: Modifier = Modifier) {
     Box(
         modifier
-            .padding(start = Espacio.filaPadH)
             .fillMaxWidth()
             .height(1.dp)
             .background(Colores.lineaFina),
@@ -226,9 +227,9 @@ fun Fila(
 fun Pastilla(texto: String, activa: Boolean, modifier: Modifier = Modifier, maxLineas: Int = 1) {
     val reducido = LocalReducido.current
     val ms = if (reducido) 0 else Tiempos.filaMs
-    val fondo by animateColorAsState(if (activa) Color.White.copy(alpha = 0.14f) else Color.Transparent, tween(ms), label = "fondo")
-    val borde by animateColorAsState(if (activa) Color.Transparent else Color.White.copy(alpha = 0.24f), tween(ms), label = "borde")
-    val color by animateColorAsState(if (activa) Color.White else Colores.pastillaApagada, tween(ms), label = "color")
+    val fondo by animateColorAsState(if (activa) Colores.acento else Color.Transparent, tween(ms), label = "fondo")
+    val borde by animateColorAsState(if (activa) Color.Transparent else Colores.linea, tween(ms), label = "borde")
+    val color by animateColorAsState(if (activa) Colores.sobreAcento else Colores.pastillaApagada, tween(ms), label = "color")
     Row(
         modifier
             .widthIn(max = 168.dp)
@@ -244,15 +245,16 @@ fun Pastilla(texto: String, activa: Boolean, modifier: Modifier = Modifier, maxL
     }
 }
 
-/** Etiqueta de sección en mayúsculas chicas, con un agregado opcional («6 de 6»). */
+/** Título de sección, con un agregado opcional a la derecha («6 de 6»). */
 @Composable
 fun EtiquetaSeccion(texto: String, modifier: Modifier = Modifier, extra: String? = null) {
-    val completo = if (extra != null) "$texto · $extra" else texto
-    Text(
-        completo.uppercase(),
-        style = Letras.seccion,
-        modifier = modifier.padding(start = 4.dp, top = Espacio.hueco + 6.dp, bottom = 8.dp),
-    )
+    Row(
+        modifier.fillMaxWidth().padding(start = Espacio.filaPadH, top = 30.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Text(texto, style = Letras.frase.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
+        if (extra != null) Text(extra.uppercase(), style = Letras.seccion)
+    }
 }
 
 /** Número grande que cuenta hasta el objetivo; si el objetivo cambia, sigue desde donde está. */
@@ -267,10 +269,10 @@ fun NumeroQueCuenta(hasta: Int, modifier: Modifier = Modifier) {
     Text(valor.value.roundToInt().toString(), style = Letras.numero, modifier = modifier.animateContentSize())
 }
 
-/** Interruptor estilo iOS, pero blanco: pista gris apagada, casi blanca prendida. */
+/** Interruptor: pista gris apagada, ámbar prendida. */
 @Composable
 fun Interruptor(prendido: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    val pista by animateColorAsState(if (prendido) Color(0xFFE9E9EE) else Color(0xFF39393D), tween(Tiempos.filaMs), label = "pista")
+    val pista by animateColorAsState(if (prendido) Colores.acento else Color(0xFF39393D), tween(Tiempos.filaMs), label = "pista")
     val x by animateDpAsState(if (prendido) 22.dp else 2.dp, spring(dampingRatio = 0.8f), label = "perilla")
     Box(
         modifier

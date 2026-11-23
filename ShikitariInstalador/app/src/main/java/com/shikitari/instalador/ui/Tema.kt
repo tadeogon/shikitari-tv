@@ -14,20 +14,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** Colores de la interfaz «F»: negro, grises de vidrio y blanco. Sin azul ni colores vivos. */
+/** Colores (4.0, diseño de Sleek): negro puro, línea fina gris, texto claro y un solo acento, el ámbar. */
 object Colores {
     val fondo = Color(0xFF000000)
-    val superficie1 = Color(0xFF0E0E10)   // fondo de lista baja
-    val superficie2 = Color(0xFF1C1C1E)   // hoja / tarjeta alta
-    val superficie3 = Color(0xFF2A2A2E)
-    val texto = Color(0xFFF5F5F7)
-    val textoDim = Color(0x8CEBEBF5)      // 55 %
-    val textoDim2 = Color(0x57EBEBF5)     // 34 %
-    val linea = Color(0x1AFFFFFF)         // 10 %
-    val lineaFina = Color(0x12FFFFFF)     // 7 %
-    val vidrioArriba = Color(0x16FFFFFF)  // 8,5 %
-    val vidrioAbajo = Color(0x0BFFFFFF)   // 4,5 %
-    val acento = Color(0xFFF2F2F7)        // el «acento» es blanco, no azul
+    val superficie1 = Color(0xFF0B0C0D)   // fondo de lista baja
+    val superficie2 = Color(0xFF121314)   // hoja / tarjeta alta
+    val superficie3 = Color(0xFF1D1F21)
+    val texto = Color(0xFFF5F5F5)
+    val textoDim = Color(0xFF9A9DA1)
+    val textoDim2 = Color(0xFF7C8086)
+    val linea = Color(0xFF2B2D30)
+    val lineaFina = Color(0xFF2B2D30)
+    val acento = Color(0xFFFFB020)        // ámbar: solo lo elegido, lo prendido y el botón principal
     val apagado = Color(0xFFC7C7CC)
     val sobreAcento = Color(0xFF000000)
     val pastillaApagada = Color(0xFFA1A1A6)
@@ -37,16 +35,17 @@ object Colores {
 object Formas {
     val hoja = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val tarjeta = RoundedCornerShape(16.dp)
+    val barra = RoundedCornerShape(20.dp)
     val campo = RoundedCornerShape(14.dp)
-    val boton = RoundedCornerShape(14.dp)
+    val boton = RoundedCornerShape(50)
     val pastilla = RoundedCornerShape(50)
 }
 
 object Espacio {
-    val borde = 16.dp          // margen lateral
-    val hueco = 14.dp          // entre bloques
-    val filaAlto = 54.dp
-    val filaPadH = 14.dp
+    val borde = 20.dp          // margen lateral
+    val hueco = 16.dp          // entre bloques
+    val filaAlto = 60.dp
+    val filaPadH = 0.dp           // las filas van sueltas sobre el negro, sin caja
     val toque = 48.dp          // mínimo tocable
     val botonAlto = 50.dp
 }
@@ -63,12 +62,12 @@ object Tiempos {
 /** Estilos de texto. Fuente del sistema. */
 object Letras {
     val titulo = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontSize = 32.sp, fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.9).sp, lineHeight = 36.sp, color = Colores.texto,
+        fontFamily = FontFamily.SansSerif, fontSize = 34.sp, fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.7).sp, lineHeight = 40.sp, color = Colores.texto,
     )
     val numero = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontSize = 56.sp, fontWeight = FontWeight.Bold,
-        letterSpacing = (-2).sp, lineHeight = 60.sp, fontFeatureSettings = "tnum", color = Colores.texto,
+        fontFamily = FontFamily.SansSerif, fontSize = 72.sp, fontWeight = FontWeight.Bold,
+        letterSpacing = (-2.2).sp, lineHeight = 76.sp, fontFeatureSettings = "tnum", color = Colores.texto,
     )
     val frase = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Colores.texto)
     val cuerpo = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, fontWeight = FontWeight.Normal, color = Colores.texto)
@@ -77,7 +76,7 @@ object Letras {
     val detalle = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, color = Colores.textoDim)
     val seccion = TextStyle(
         fontFamily = FontFamily.SansSerif, fontSize = 12.sp, fontWeight = FontWeight.Medium,
-        letterSpacing = 0.72.sp, color = Color.White.copy(alpha = 0.42f),
+        letterSpacing = 0.72.sp, color = Colores.textoDim,
     )
     val nota = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 12.5.sp, lineHeight = 18.75.sp, color = Colores.textoDim)
     val tabular = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, fontFeatureSettings = "tnum", color = Colores.textoDim)

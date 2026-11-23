@@ -3,6 +3,7 @@ package com.shikitari.instalador.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -32,46 +35,37 @@ import androidx.compose.ui.unit.sp
 fun PestanaTv(app: EstadoApp, irA: (Ruta) -> Unit, irAPestana: (Pestana) -> Unit) {
     val conectada = app.conectada
     Pagina(
-        titulo = "Mis TVs",
+        titulo = conectada?.nombre ?: "Mis TVs",
+        antetitulo = if (conectada != null) "Conectada" else "Sin conexión",
+        subtitulo = if (conectada != null) app.infoConectada else "Tocá una TV de la lista para conectarte.",
         accion = { BotonBarra(Iconos.agregar, "Agregar TV") { irA(Ruta.AgregarTv) } },
     ) {
-        // Estado de la conexión
-        Tarjeta(Modifier.padding(top = Espacio.hueco), alto = true) {
-            Row(
-                Modifier.padding(horizontal = Espacio.filaPadH, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    Modifier
-                        .size(12.dp)
-                        .background(if (conectada != null) Colores.texto else Color.Transparent, CircleShape)
-                        .border(1.5.dp, Colores.texto.copy(alpha = if (conectada != null) 1f else 0.4f), CircleShape),
-                )
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(conectada?.let { "Conectado a ${it.nombre}" } ?: "Sin conectar", style = Letras.frase.copy(fontSize = 17.sp))
-                    Text(
-                        if (conectada != null) app.infoConectada else "Tocá una TV de la lista para conectarte.",
-                        style = Letras.detalle,
-                    )
-                }
-            }
-        }
-
-        // Atajos (solo con una TV conectada)
+        // Con una TV conectada: la entrada a la pantalla en vivo y los atajos
         AnimatedVisibility(visible = conectada != null) {
             Column {
+                Column(
+                    Modifier
+                        .padding(top = 24.dp)
+                        .fillMaxWidth()
+                        .vidrio(alto = true)
+                        .clickable(role = Role.Button) { irAPestana(Pestana.CONTROL) }
+                        .padding(vertical = 30.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(Iconos.tv, null, tint = Colores.acento, modifier = Modifier.size(64.dp))
+                    Text("Ver la pantalla en vivo", style = Letras.cuerpo.copy(fontWeight = FontWeight.Medium), modifier = Modifier.padding(top = 12.dp))
+                    Text("y manejarla desde el celular", style = Letras.detalle)
+                }
                 EtiquetaSeccion("Atajos")
                 Tarjeta {
-                    FilaIr("Control remoto", "Ver la pantalla y manejarla", Iconos.control, primera = true) { irAPestana(Pestana.CONTROL) }
-                    FilaIr("Apps de la TV", "Abrir, fijar o desinstalar", Iconos.grilla) { irAPestana(Pestana.CONTROL); irA(Ruta.Apps) }
+                    FilaIr("Apps de la TV", "Abrir, fijar o desinstalar", Iconos.grilla, primera = true) { irAPestana(Pestana.CONTROL); irA(Ruta.Apps) }
                     FilaIr("Instalar un APK", "Desde tu celular a la TV", Iconos.paquete) { irA(Ruta.Archivos(instalar = true)) }
                 }
             }
         }
 
         // Mis TVs
-        EtiquetaSeccion("Guardadas")
+        EtiquetaSeccion(if (conectada != null) "Mis TVs" else "Guardadas", extra = app.tvs.size.takeIf { it > 0 }?.toString())
         Tarjeta {
             if (app.tvs.isEmpty() && app.nuevas.isEmpty()) {
                 NotaTarjeta("Todavía no hay TVs guardadas. Buscalas en el Wi-Fi o agregá una con el código.")
@@ -92,7 +86,7 @@ fun PestanaTv(app: EstadoApp, irA: (Ruta) -> Unit, irAPestana: (Pestana) -> Unit
             Text(
                 "Tocá una TV para conectarte. Dejala apretada para cambiarle el nombre o sacarla.",
                 style = Letras.nota,
-                modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
 

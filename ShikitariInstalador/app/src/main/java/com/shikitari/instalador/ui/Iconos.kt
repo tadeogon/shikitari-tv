@@ -28,6 +28,24 @@ object Iconos {
             pathBuilder = trazo,
         ).build()
 
+    val silencio = icono("silencio") {
+        moveTo(4f, 9.5f); lineTo(4f, 14.5f); lineTo(7.5f, 14.5f); lineTo(12f, 18.5f); lineTo(12f, 5.5f); lineTo(7.5f, 9.5f); close()
+        moveTo(16f, 9.5f); lineTo(21f, 14.5f)
+        moveTo(21f, 9.5f); lineTo(16f, 14.5f)
+    }
+    val encendido = icono("encendido") {
+        moveTo(12f, 3.5f); lineTo(12f, 11.5f)
+        moveTo(7.2f, 6.6f); arcTo(7.3f, 7.3f, 0f, true, false, 16.8f, 6.6f)
+    }
+    val retroceder = icono("retroceder") {
+        moveTo(20f, 6f); lineTo(13f, 12f); lineTo(20f, 18f); close()
+        moveTo(11f, 6f); lineTo(4f, 12f); lineTo(11f, 18f); close()
+    }
+    val adelantar = icono("adelantar") {
+        moveTo(4f, 6f); lineTo(11f, 12f); lineTo(4f, 18f); close()
+        moveTo(13f, 6f); lineTo(20f, 12f); lineTo(13f, 18f); close()
+    }
+
     val atras = icono("atras") {
         moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f)
     }

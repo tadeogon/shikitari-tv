@@ -160,7 +160,7 @@ fun AppShikitari(app: EstadoApp, control: EstadoControl, archivos: EstadoArchivo
             Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(start = Espacio.borde, end = Espacio.borde, bottom = if (pila.isEmpty()) 76.dp else 92.dp),
+                .padding(start = Espacio.borde, end = Espacio.borde, bottom = 92.dp),
         )
         AvisoConexion(app, Modifier.align(Alignment.TopCenter))
         CapaDialogos(app.dialogos)
@@ -209,7 +209,7 @@ private fun AvisoConexion(app: EstadoApp, modifier: Modifier) {
                 Box(
                     Modifier
                         .clip(Formas.boton)
-                        .background(Color.White)
+                        .background(Colores.acento)
                         .clickable(role = Role.Button) { app.volverAConectar() }
                         .padding(horizontal = 14.dp, vertical = 9.dp),
                 ) {
@@ -222,21 +222,22 @@ private fun AvisoConexion(app: EstadoApp, modifier: Modifier) {
 
 @Composable
 private fun BarraPestanas(actual: Pestana, onElegir: (Pestana) -> Unit) {
+    // Barra suelta y redondeada, con lo elegido en ámbar.
     Column(
         Modifier
             .fillMaxWidth()
-            .background(Color(0xD90E0E10)),
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
     ) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Colores.linea))
         Row(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 8.dp),
+                .vidrio(Formas.barra, alto = true)
+                .padding(horizontal = 4.dp),
         ) {
             Pestana.entries.forEach { p ->
                 val elegida = p == actual
-                val color by animateColorAsState(if (elegida) Colores.texto else Colores.textoDim2, tween(Tiempos.filaMs), label = "pestaña")
+                val color by animateColorAsState(if (elegida) Colores.acento else Colores.textoDim, tween(Tiempos.filaMs), label = "pestaña")
                 Column(
                     Modifier
                         .weight(1f)
@@ -249,7 +250,8 @@ private fun BarraPestanas(actual: Pestana, onElegir: (Pestana) -> Unit) {
                     Text(
                         p.titulo,
                         color = color,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.4.sp,
                         fontWeight = if (elegida) FontWeight.SemiBold else FontWeight.Normal,
                         modifier = Modifier.padding(top = 3.dp),
                     )

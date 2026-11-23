@@ -275,3 +275,10 @@ NOTA      el dueño forzó la detención de Netflix y com.magis.tioNel con el co
 INSTALADA com.pachi.tv 1.49 en Chromecast 192.168.100.2 -> Success (estaba la 1.46). Probado: Inicio vuelve a Ziota, abre Apps abiertas; no se cerró ninguna app. Solari 1.16 quedó como estaba
 INSTALADOR Shikitari Instalador 3.7 (lleva Ziota/Solari 1.49) en el celular -> Success. APKs/ actualizados
 DECISIÓN  Prime Video se deja prendida (el dueño la usa); la precalienta el servicio del sistema dynamicwarmingservice
+
+--- 22/11/2026 (noche): Instalador 4.1 en el celular (sin instalar nada en las teles) ---
+INSTALADOR Shikitari Instalador 4.1 (versionCode 25) en el celular -> Success. APKs/Shikitari-Instalador.apk actualizado
+PRUEBA    Fire Stick 192.168.100.68: volumen abajo y arriba por ADB; lo ignora por HDMI ("fixed volume device"). Sin cambios
+LECTURA   copias de ClipBox, Tio Nel y Modocine guardadas en el celular (solo lectura de la tele)
+REVISADO  Chromecast 192.168.100.2 ya tiene com.pachi.tv 1.49, igual que el Fire Stick: no se instaló nada
+PENDIENTE probar el volumen de la Samsung por Wi-Fi (hay que aceptar "Shikitari Control" en la tele) y reinstalar una copia .apks

@@ -3,6 +3,20 @@ package com.shikitari.instalador.ui
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,22 +53,41 @@ import com.shikitari.instalador.Modelo
 
 @Composable
 fun PestanaOptimizar(app: EstadoApp, irA: (Ruta) -> Unit, irAPestana: (Pestana) -> Unit) {
-    Pagina(titulo = "Optimizar", subtitulo = app.conectada?.nombre) {
-        if (app.conectada == null) {
+    val conectada = app.conectada
+    var memoria by remember(conectada?.ip) { mutableStateOf<Memoria?>(null) }
+    val ciclo by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+    val mirando = ciclo.isAtLeast(Lifecycle.State.RESUMED) && conectada != null && app.enlace == EstadoApp.Enlace.BIEN
+    LaunchedEffect(mirando, conectada?.ip) {
+        // Una lectura al entrar (y otra si la primera no llegó): no se le pregunta todo el tiempo a la TV.
+        repeat(2) {
+            if (!mirando || memoria != null) return@LaunchedEffect
+            leerMemoria(app.tv)?.let { memoria = it }
+            delay(3000)
+        }
+    }
+    Pagina(titulo = "Optimizar", antetitulo = conectada?.let { "Tablero de ${it.nombre}" } ?: "Sin conexión") {
+        if (conectada == null) {
             SinTv(irAPestana)
             return@Pagina
         }
-        Tarjeta(Modifier.padding(top = Espacio.hueco)) {
-            NotaTarjeta(
-                "La app mira qué apps tiene tu TV y te muestra, por grupos, las que conviene apagar: rastreo, publicidad, " +
-                    "tutoriales y restos que no se usan. Vos elegís cuáles. Alexa, Prime Video, la tienda y el control " +
-                    "no se tocan. Nada se borra y todo se puede deshacer.",
-            )
+        // Memoria de la TV ahora mismo
+        Text(memoria?.let { enTexto(it.libre) } ?: "—", style = Letras.numero, modifier = Modifier.padding(top = 28.dp))
+        Text("de memoria libre en tu TV", style = Letras.cuerpo.copy(fontSize = 17.sp, color = Colores.textoDim), modifier = Modifier.padding(top = 6.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 26.dp), verticalAlignment = Alignment.Bottom) {
+            Text("MEMORIA EN USO", style = Letras.seccion, modifier = Modifier.weight(1f))
+            Text(memoria?.let { "${enTexto(it.usada)} de ${enTexto(it.total)}" } ?: "Leyendo…", style = Letras.cuerpo.copy(fontSize = 15.sp))
         }
-        Hueco()
-        BotonPrincipal("Optimizar", onClick = { if (app.hayTv()) irA(Ruta.OptimizarApps) })
+        Medidor(memoria?.let { it.usada.toFloat() / it.total.coerceAtLeast(1) } ?: 0f, Modifier.padding(top = 12.dp))
+
+        Hueco(28)
+        BotonPrincipal("Elegir qué apagar", onClick = { if (app.hayTv()) irA(Ruta.OptimizarApps) })
         Hueco(10)
         BotonSecundario("Cerrar apps abiertas", onClick = { app.ejecutar("Cerrar apps abiertas") { app.acciones.cerrarApps() } })
+        Text(
+            "Alexa, Prime Video, la tienda y el control no se tocan. Nada se borra y todo se puede deshacer.",
+            style = Letras.nota,
+            modifier = Modifier.padding(top = 14.dp),
+        )
 
         EtiquetaSeccion("Más opciones")
         Tarjeta {
@@ -80,23 +113,55 @@ fun PestanaOptimizar(app: EstadoApp, irA: (Ruta) -> Unit, irAPestana: (Pestana) 
 
 @Composable
 fun PestanaMas(app: EstadoApp, irA: (Ruta) -> Unit) {
-    Pagina(titulo = "Más") {
+    Pagina(titulo = "Más", antetitulo = "Ajustes") {
+        EtiquetaSeccion("Launchers")
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FichaLauncher("Shikitari TV", Iconos.estrella, Modifier.weight(1f)) { irA(Ruta.Launcher(Launcher.SHIKITARI)) }
+            FichaLauncher("Ziota", Iconos.grilla, Modifier.weight(1f)) { irA(Ruta.Launcher(Launcher.ZIOTA)) }
+            FichaLauncher("Solari", Iconos.tv, Modifier.weight(1f)) { irA(Ruta.Launcher(Launcher.SOLARI)) }
+        }
         EtiquetaSeccion("En la TV")
         Tarjeta {
             FilaIr("Archivos", "Ver, borrar y pasar archivos", Iconos.carpeta, primera = true) { if (app.hayTv()) irA(Ruta.Archivos()) }
             FilaIr("Instalar un APK", "Desde tu celular a la TV", Iconos.paquete) { if (app.hayTv()) irA(Ruta.Archivos(instalar = true)) }
             FilaIr("Botones del control", "Cambiar qué app abre cada botón", Iconos.control) { if (app.hayTv()) irA(Ruta.Botones) }
         }
-        EtiquetaSeccion("Launchers")
-        Tarjeta {
-            FilaIr("Shikitari TV", "Launcher con tus gatos", Iconos.tv, primera = true) { irA(Ruta.Launcher(Launcher.SHIKITARI)) }
-            FilaIr("Ziota", "Estilo Apple TV, con isla dinámica", Iconos.tv) { irA(Ruta.Launcher(Launcher.ZIOTA)) }
-            FilaIr("Solari", "Launcher del trabajo", Iconos.tv) { irA(Ruta.Launcher(Launcher.SOLARI)) }
-        }
         EtiquetaSeccion("Ayuda")
         Tarjeta {
             FilaIr("Ayuda con Claude", "Contale el problema y revisa la TV", Iconos.chispa, primera = true) { irA(Ruta.Claude) }
             FilaIr("Historial", "Todo lo que se hizo en las TVs", Iconos.reloj) { irA(Ruta.Historial) }
+        }
+    }
+}
+
+@Composable
+private fun FichaLauncher(nombre: String, icono: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.clip(Formas.tarjeta).clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(64.dp).vidrio(Formas.tarjeta, alto = true), contentAlignment = Alignment.Center) {
+            Icon(icono, null, tint = Colores.texto, modifier = Modifier.size(26.dp))
+        }
+        Text(nombre, style = Letras.cuerpo.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium), maxLines = 1, modifier = Modifier.padding(top = 10.dp))
+        Box(
+            Modifier
+                .padding(top = 8.dp)
+                .fillMaxWidth()
+                .heightIn(min = 44.dp)
+                .border(1.dp, Colores.linea, Formas.pastilla),
+            contentAlignment = Alignment.Center,
+        ) { Text("Abrir", style = Letras.cuerpo.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium)) }
+    }
+}
+
+/** Medidor de 20 rayitas; las que están en uso van en ámbar. */
+@Composable
+private fun Medidor(parte: Float, modifier: Modifier = Modifier) {
+    val prendidas = (parte.coerceIn(0f, 1f) * 20).roundToInt()
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(20) { i ->
+            Box(Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(2.dp)).background(if (i < prendidas) Colores.acento else Colores.linea))
         }
     }
 }

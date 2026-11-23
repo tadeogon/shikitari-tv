@@ -146,6 +146,7 @@ fun Pagina(
     titulo: String,
     onAtras: (() -> Unit)? = null,
     subtitulo: String? = null,
+    antetitulo: String? = null,
     accion: (@Composable () -> Unit)? = null,
     pie: (@Composable ColumnScope.() -> Unit)? = null,
     margenAbajo: Boolean = true,
@@ -156,7 +157,7 @@ fun Pagina(
             Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .heightIn(min = 50.dp)
+                .heightIn(min = if (onAtras == null && accion == null) 20.dp else 50.dp)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -182,6 +183,7 @@ fun Pagina(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Espacio.borde),
         ) {
+            if (antetitulo != null) Text(antetitulo.uppercase(), style = Letras.seccion, modifier = Modifier.padding(bottom = 2.dp))
             Text(titulo, style = Letras.titulo)
             if (subtitulo != null) Text(subtitulo, style = Letras.detalle, modifier = Modifier.padding(top = 4.dp))
             content()
@@ -191,7 +193,7 @@ fun Pagina(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))))
+                    .background(Colores.fondo)
                     .navigationBarsPadding()
                     .imePadding()
                     .padding(start = Espacio.borde, end = Espacio.borde, top = 12.dp, bottom = 12.dp),
@@ -252,12 +254,11 @@ fun FilaIr(
             if (icono != null) {
                 Box(
                     Modifier
-                        .size(32.dp)
-                        .clip(Formas.campo)
-                        .background(Color.White.copy(alpha = 0.10f)),
+                        .size(44.dp)
+                        .vidrio(Formas.campo, alto = true),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(icono, null, tint = Colores.texto.copy(alpha = if (activa) 1f else 0.5f), modifier = Modifier.size(19.dp))
+                    Icon(icono, null, tint = Colores.texto.copy(alpha = if (activa) 1f else 0.5f), modifier = Modifier.size(21.dp))
                 }
                 Spacer(Modifier.width(12.dp))
             }
@@ -399,7 +400,7 @@ private fun HojaOpciones(h: HojaPedida, onCerrar: () -> Unit) {
                                 cerrar()
                                 o.accion()
                             }
-                            .padding(horizontal = Espacio.filaPadH),
+                            .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val color = if (o.peligro) Colores.error else Colores.texto

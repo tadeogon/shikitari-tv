@@ -125,12 +125,20 @@ class EstadoApp(contextoActividad: Context) {
      */
     private fun tvLista(): Boolean = synchronized(candado) {
         val t = conectada ?: return false
-        if (tv.responde()) {
+        // Dos intentos: si la TV está cargada puede tardar, y cortar una conexión sana es peor que esperar.
+        if (tv.responde(6) || tv.responde(8)) {
             if (enlace != Enlace.BIEN) enUi { enlace = Enlace.BIEN }
             return true
         }
         if (enlace != Enlace.PERDIDO) enUi { enlace = Enlace.RECONECTANDO }
-        tv.soltar()
+        if (tv.isConnected) tv.soltar() // quedó colgada
+        // Camino corto: misma IP y mismo puerto, sin volver a leer todo lo de la TV. Es lo que pasa al volver
+        // a la app: Android le corta la red a los 5 segundos de salir.
+        val enSeguida = t.puerto > 0 && try { tv.conectarSiHaceFalta(t.ip, t.puerto) } catch (e: Exception) { false }
+        if (enSeguida) {
+            enUi { enlace = Enlace.BIEN }
+            return true
+        }
         val r = try {
             conectarA(t.ip, t.puerto)
         } catch (e: Exception) {
@@ -282,9 +290,13 @@ class EstadoApp(contextoActividad: Context) {
         if (!ok) return "No se pudo conectar con $host. Revisá que la TV esté prendida y con la depuración activada. " +
             "Si en la TV aparece «¿Permitir depuración?», marcá «Siempre» y aceptá; después tocala de nuevo."
         prefs.edit().putString("ip", host).putString("puerto", puerto.toString()).apply()
-        val modelo = try { tv.ejecutar("getprop ro.product.model").trim() } catch (e: Exception) { "" }
+        // Una sola pregunta y con tope: antes eran cuatro de hasta un minuto cada una.
+        val datos = tv.leerSuave("getprop ro.product.model; getprop ro.build.version.release; df -h /data | tail -n 1", 8)
+            ?.lines()?.map { it.trim() }.orEmpty()
+        val modelo = datos.getOrElse(0) { "" }
         val guardada = MisTvs.recordar(contexto, host, puerto, modelo)
-        val info = acciones.infoTv().removePrefix("Conectado a ")
+        val info = if (datos.size < 3) "" else
+            "$modelo (Android ${datos[1]}). Espacio libre: ${datos[2].split(Regex("\\s+")).getOrElse(3) { "?" }}"
         enUi {
             conectada = guardada
             enlace = Enlace.BIEN
