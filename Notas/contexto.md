@@ -5,9 +5,9 @@ Actualizado: 2026-11-23
 ## Equipos y versiones
 | Equipo | Dirección adb | Versión |
 |---|---|---|
-| Fire Stick | 192.168.100.68:5555 | Ziota 1.51 |
-| Chromecast (Android 14) | adb-23161HFDD5CD6T-GRh2rO._adb-tls-connect._tcp (192.168.100.2) | Ziota 1.51 |
-| Celular Samsung | adb-R5CY5520NLJ-WguLmn._adb-tls-connect._tcp (192.168.100.65) | App instalador 4.2 |
+| Fire Stick | 192.168.100.68:5555 | Ziota 1.53 |
+| Chromecast (Android 14) | adb-23161HFDD5CD6T-GRh2rO._adb-tls-connect._tcp (192.168.100.2) | Ziota 1.53 |
+| Celular Samsung | adb-R5CY5520NLJ-WguLmn._adb-tls-connect._tcp (192.168.100.65) | App instalador 4.3 |
 | Tele Samsung QN65Q6F | 192.168.100.67 (puertos 8001/8002) | volumen por Wi-Fi |
 
 adb: `C:\Android\sdk\platform-tools\adb.exe` (en bash: `export MSYS_NO_PATHCONV=1`).

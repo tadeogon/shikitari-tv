@@ -296,3 +296,11 @@ INSTALADOR 4.2 recompilado con Ziota/Solari 1.51 en APKs/
 == 2026-11-23
 INSTALADA com.pachi.tv 1.51 (versionCode 52) en Fire Stick 192.168.100.68 -> Success (estaba la 1.49). Servicio del botón Inicio activo; desde Ajustes, Inicio vuelve a Ziota (probado)
 INSTALADA Shikitari Instalador 4.2 (versionCode 26) en el celular -> Success (estaba la 4.1)
+INSTALADA com.pachi.tv 1.52 (versionCode 53) en Fire Stick 192.168.100.68 -> Success (estaba la 1.51)
+CAMBIO    doble Inicio: ahora se mide cuando aparece la pantalla de Amazon (InicioService), no cuando llega Ziota. Con el control de verdad las dos apretadas llegaban a Ziota a menos de 400 ms y la segunda se descartaba como eco
+INSTALADA com.pachi.tv 1.53 (versionCode 54) en Fire Stick 192.168.100.68 -> Success (estaba la 1.52)
+CAMBIO    se sacó "Inicio dos veces = apps abiertas": con el control de verdad 1 de cada 3 veces quedaba el launcher de Amazon. Se deshizo lo de la 1.52. Probado: desde Spotify, Inicio vuelve a Ziota
+NOTA      después de instalar, si queda arriba la pantalla de Amazon, Inicio no la cambia hasta moverse o abrir Ziota
+INSTALADA com.pachi.tv 1.53 (versionCode 54) en Chromecast -> Success (estaba la 1.51); servicio Inicio activo
+INSTALADA Shikitari Instalador 4.3 (versionCode 27) en el celular -> Success (estaba la 4.2), lleva Ziota/Solari 1.53
+APKs/     Pachi-TV, Solari-TV y Shikitari-Instalador actualizados

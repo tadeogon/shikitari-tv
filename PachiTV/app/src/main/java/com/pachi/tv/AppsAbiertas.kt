@@ -22,7 +22,7 @@ import java.util.Locale
 /**
  * Apps abiertas, como en el celular: la última usada grande en el medio y las anteriores apiladas a la izquierda.
  * ← → se mueve, OK la abre, ↑ la cierra, ↓ la protege; a la derecha, "Cerrar todo" con la memoria.
- * Se abre con Inicio dos veces.
+ * Se abre desde Ziota (ya no con Inicio dos veces).
  *
  * En Fire TV y en Android 14 o más ninguna app puede cerrar a otra (ver [SOLO_DESDE_AJUSTES]): ahí ↑ abre la información de esa app en los
  * ajustes de la tele (para tocar "Forzar detención") y el botón de la derecha, la lista de todas las apps.

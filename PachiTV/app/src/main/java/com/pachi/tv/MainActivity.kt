@@ -295,13 +295,11 @@ class MainActivity : Activity() {
         recibirPcs(intent)
         recibirConfiguracion(intent)
         if (intent.getBooleanExtra(EXTRA_DESDE_HOME, false) || intent.hasCategory(Intent.CATEGORY_HOME)) {
-            // Inicio dos veces seguidas: apps abiertas.
+            // Ya no hay "Inicio dos veces = apps abiertas" (1.53): en el Fire fallaba 1 de cada 3 veces
+            // y dejaba el launcher de Amazon. Las apps abiertas se abren desde Ziota.
             val ahora = android.os.SystemClock.uptimeMillis()
-            // El Fire Stick avisa dos veces por cada Inicio (con ~50 ms de diferencia): eso es UNA sola
-            // apretada. Doble Inicio de verdad = dos avisos separados por más de 400 ms y menos de 1,5 s.
-            val pasaron = ahora - ultimoInicio
-            if (pasaron < 400) return
-            abrirVisorAlVolver = !formal && pasaron < 1500
+            // El Fire Stick avisa dos veces por cada Inicio (con ~50 ms de diferencia): eso es UNA sola apretada.
+            if (ahora - ultimoInicio < 400) return
             ultimoInicio = ahora
             pagina = Pagina.INICIO
             enVitrina = true

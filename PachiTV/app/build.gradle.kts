@@ -11,8 +11,8 @@ android {
         applicationId = "com.pachi.tv"
         minSdk = 22
         targetSdk = 35
-        versionCode = 52
-        versionName = "1.51"
+        versionCode = 54
+        versionName = "1.53"
     }
 
     // Dos versiones del mismo launcher: la tuya y la del trabajo.
